@@ -9,8 +9,8 @@ from direct.directnotify import DirectNotifyGlobal
 from direct.distributed.ConnectionRepository import ConnectionRepository
 from direct.distributed.PyDatagram import PyDatagram
 from direct.distributed.PyDatagramIterator import PyDatagramIterator
-from panda3d_astron.database import AstronDatabaseInterface
-from panda3d_astron.messenger import NetMessenger
+from database import AstronDatabaseInterface
+from messenger import NetMessenger
 import collections
 
 from panda3d.direct import STUint16, STUint32, DCPacker
@@ -37,7 +37,7 @@ class AstronClientRepository(ClientRepositoryBase):
 
     notify = DirectNotifyGlobal.directNotify.newCategory("AstronClientRepository")
 
-    # This is required by DoCollectionManager, even though it's not
+        # This is required by DoCollectionManager, even though it's not
     # used by this implementation.
     GameGlobalsId = 0
 
@@ -183,17 +183,14 @@ class AstronClientRepository(ClientRepositoryBase):
     def deleteObject(self, doId):
         """
         implementation copied from ClientRepository.py
-
         Removes the object from the client's view of the world.  This
         should normally not be called directly except in the case of
         error recovery, since the server will normally be responsible
         for deleting and disabling objects as they go out of scope.
-
         After this is called, future updates by server on this object
         will be ignored (with a warning message).  The object will
         become valid again the next time the server sends a generate
         message for this doId.
-
         This is not a distributed message and does not delete the
         object on the server or on any other client.
         """
@@ -278,7 +275,7 @@ class AstronClientRepository(ClientRepositoryBase):
         """
         This implicitly deletes all objects from the repository.
         """
-        for do_id in list(self.doId2do.keys()):
+        for do_id in self.doId2do.keys():
             self.deleteObject(do_id)
         ClientRepositoryBase.disconnect(self)
 
@@ -349,7 +346,6 @@ class AstronInternalRepository(ConnectionRepository):
     def allocateChannel(self):
         """
         Allocate an unused channel out of this AIR's configured channel space.
-
         This is also used to allocate IDs for DistributedObjects, since those
         occupy a channel.
         """
@@ -366,7 +362,6 @@ class AstronInternalRepository(ConnectionRepository):
     def registerForChannel(self, channel):
         """
         Register for messages on a specific Message Director channel.
-
         If the channel is already open by this AIR, nothing will happen.
         """
 
@@ -398,7 +393,6 @@ class AstronInternalRepository(ConnectionRepository):
         """
         Register a datagram with the Message Director that gets sent out if the
         connection is ever lost.
-
         This is useful for registering cleanup messages: If the Panda3D process
         ever crashes unexpectedly, the Message Director will detect the socket
         close and automatically process any post-remove datagrams.
@@ -407,13 +401,12 @@ class AstronInternalRepository(ConnectionRepository):
         dg2 = PyDatagram()
         dg2.addServerControlHeader(CONTROL_ADD_POST_REMOVE)
         dg2.addUint64(self.ourChannel)
-        dg2.appendData(dg.getMessage())
+        dg2.addBlob(dg.getMessage())
         self.send(dg2)
 
     def clearPostRemove(self):
         """
         Clear all datagrams registered with addPostRemove.
-
         This is useful if the Panda3D process is performing a clean exit. It may
         clear the "emergency clean-up" post-remove messages and perform a normal
         exit-time clean-up instead, depending on the specific design of the game.
@@ -437,7 +430,6 @@ class AstronInternalRepository(ConnectionRepository):
             self.handleObjLocation(di)
         elif msgType in (DBSERVER_CREATE_OBJECT_RESP,
                          DBSERVER_OBJECT_GET_ALL_RESP,
-                         DBSERVER_GET_ESTATE,
                          DBSERVER_OBJECT_GET_FIELDS_RESP,
                          DBSERVER_OBJECT_GET_FIELD_RESP,
                          DBSERVER_OBJECT_SET_FIELD_IF_EQUALS_RESP,
@@ -540,10 +532,8 @@ class AstronInternalRepository(ConnectionRepository):
     def getLocation(self, doId, callback):
         """
         Ask a DistributedObject where it is.
-
         You should already be sure the object actually exists, otherwise the
         callback will never be called.
-
         Callback is called as: callback(doId, parentId, zoneId)
         """
 
@@ -572,10 +562,8 @@ class AstronInternalRepository(ConnectionRepository):
     def getObject(self, doId, callback):
         """
         Get the entire state of an object.
-
         You should already be sure the object actually exists, otherwise the
         callback will never be called.
-
         Callback is called as: callback(doId, parentId, zoneId, dclass, fields)
         """
 
@@ -632,10 +620,8 @@ class AstronInternalRepository(ConnectionRepository):
     def getNetworkAddress(self, clientId, callback):
         """
         Get the endpoints of a client connection.
-
         You should already be sure the client actually exists, otherwise the
         callback will never be called.
-
         Callback is called as: callback(remoteIp, remotePort, localIp, localPort)
         """
 
@@ -665,7 +651,6 @@ class AstronInternalRepository(ConnectionRepository):
     def sendUpdate(self, do, fieldName, args):
         """
         Send a field update for the given object.
-
         You should use do.sendUpdate(...) instead. This is not meant to be
         called directly unless you really know what you are doing.
         """
@@ -675,10 +660,8 @@ class AstronInternalRepository(ConnectionRepository):
     def sendUpdateToChannel(self, do, channelId, fieldName, args):
         """
         Send an object field update to a specific channel.
-
         This is useful for directing the update to a specific client or node,
         rather than at the State Server managing the object.
-
         You should use do.sendUpdateToChannel(...) instead. This is not meant
         to be called directly unless you really know what you are doing.
         """
@@ -691,7 +674,6 @@ class AstronInternalRepository(ConnectionRepository):
     def sendActivate(self, doId, parentId, zoneId, dclass=None, fields=None):
         """
         Activate a DBSS object, given its doId, into the specified parentId/zoneId.
-
         If both dclass and fields are specified, an ACTIVATE_WITH_DEFAULTS_OTHER
         will be sent instead. In other words, the specified fields will be
         auto-applied during the activation.
@@ -700,7 +682,7 @@ class AstronInternalRepository(ConnectionRepository):
         fieldPacker = DCPacker()
         fieldCount = 0
         if dclass and fields:
-            for k,v in list(fields.items()):
+            for k,v in fields.items():
                 field = dclass.getFieldByName(k)
                 if not field:
                     self.notify.error('Activation request for %s object contains '
@@ -750,7 +732,6 @@ class AstronInternalRepository(ConnectionRepository):
     def generateWithRequired(self, do, parentId, zoneId, optionalFields=[]):
         """
         Generate an object onto the State Server, choosing an ID from the pool.
-
         You should use do.generateWithRequired(...) instead. This is not meant
         to be called directly unless you really know what you are doing.
         """
@@ -761,7 +742,6 @@ class AstronInternalRepository(ConnectionRepository):
     def generateWithRequiredAndId(self, do, doId, parentId, zoneId, optionalFields=[]):
         """
         Generate an object onto the State Server, specifying its ID and location.
-
         You should use do.generateWithRequiredAndId(...) instead. This is not
         meant to be called directly unless you really know what you are doing.
         """
@@ -773,7 +753,6 @@ class AstronInternalRepository(ConnectionRepository):
     def requestDelete(self, do):
         """
         Request the deletion of an object that already exists on the State Server.
-
         You should use do.requestDelete() instead. This is not meant to be
         called directly unless you really know what you are doing.
         """
@@ -787,7 +766,6 @@ class AstronInternalRepository(ConnectionRepository):
         """
         Connect to a Message Director. The airConnected message is sent upon
         success.
-
         N.B. This overrides the base class's connect(). You cannot use the
         ConnectionRepository connect() parameters.
         """
@@ -842,7 +820,6 @@ class AstronInternalRepository(ConnectionRepository):
         """
         Set the target host for Event Logger messaging. This should be pointed
         at the UDP IP:port that hosts the cluster's running Event Logger.
-
         Providing a value of None or an empty string for 'host' will disable
         event logging.
         """
@@ -862,13 +839,12 @@ class AstronInternalRepository(ConnectionRepository):
     def writeServerEvent(self, logtype, *args, **kwargs):
         """
         Write an event to the central Event Logger, if one is configured.
-
         The purpose of the Event Logger is to keep a game-wide record of all
         interesting in-game events that take place. Therefore, this function
         should be used whenever such an interesting in-game event occurs.
         """
 
-        if self.eventSocket is None:
+        if self.eventSocket is not None:
             return # No event logger configured!
 
         log = collections.OrderedDict()
@@ -953,18 +929,6 @@ class AstronInternalRepository(ConnectionRepository):
         dg = PyDatagram()
         dg.addServerHeader(doId, self.ourChannel, STATESERVER_OBJECT_SET_OWNER)
         dg.add_uint64(newOwner)
-        self.send(dg)
-
-    def sendUpdateToDoId(self, dclassName, fieldName, doId, args=[]):
-        """
-        Send an object field update to a specific doId by its fieldName.
-
-        This is useful for AI to UD (and vice versa) field updates.
-        """
-
-        dclass = self.dclassesByName[dclassName + self.dcSuffix]
-        field = dclass.getFieldByName(fieldName)
-        dg = field.aiFormatUpdate(doId, doId, self.ourChannel, args)
         self.send(dg)
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------------- #

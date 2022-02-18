@@ -4,7 +4,7 @@ from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
 from direct.distributed.PyDatagram import PyDatagram
 from direct.distributed import MsgTypes
-from direct.distributed.AstronInternalRepository import AstronInternalRepository
+from panda3d_astron.repository import AstronInternalRepository
 from panda3d.core import loadPrcFileData
 from time import sleep
 

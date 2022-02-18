@@ -2,7 +2,7 @@
 
 from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
-from direct.distributed.AstronInternalRepository import AstronInternalRepository
+from panda3d_astron.repository import AstronInternalRepository
 from direct.directnotify.DirectNotifyGlobal import directNotify
 from panda3d.core import loadPrcFileData
 from time import sleep

@@ -9,8 +9,8 @@ from direct.directnotify import DirectNotifyGlobal
 from direct.distributed.ConnectionRepository import ConnectionRepository
 from direct.distributed.PyDatagram import PyDatagram
 from direct.distributed.PyDatagramIterator import PyDatagramIterator
-from database import AstronDatabaseInterface
-from messenger import NetMessenger
+from panda3d_astron.database import AstronDatabaseInterface
+from panda3d_astron.messenger import NetMessenger
 import collections
 
 from panda3d.direct import STUint16, STUint32, DCPacker

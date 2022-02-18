@@ -9,7 +9,7 @@ import sys
 from direct.showbase.ShowBase import ShowBase
 from direct.task import Task
 from panda3d.core import URLSpec
-from direct.distributed.AstronClientRepository import AstronClientRepository
+from panda3d_astron.repository import AstronClientRepository
 from direct.distributed import MsgTypes
 from pandac.PandaModules import STUint16, STUint32
 

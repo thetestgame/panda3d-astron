@@ -1,12 +1,11 @@
-
-from panda3d.direct import DCPacker
-from direct.distributed.MsgTypes import *
+from panda3d.core import *
 from direct.directnotify import DirectNotifyGlobal
+from direct.distributed.MsgTypes import *
 from direct.distributed.ConnectionRepository import ConnectionRepository
 from direct.distributed.PyDatagram import PyDatagram
 from direct.distributed.PyDatagramIterator import PyDatagramIterator
 
-class AstronDatabaseInterface(object):
+class AstronDatabaseInterface:
     """
     This class is part of Panda3D's new MMO networking framework.
     It interfaces with Astron database(s) to manage objects directly, rather than
@@ -15,7 +14,6 @@ class AstronDatabaseInterface(object):
     Do not create this class directly; instead, use AstronInternalRepository's
     dbInterface attribute.
     """
-    
     notify = DirectNotifyGlobal.directNotify.newCategory("AstronDatabaseInterface")
 
     def __init__(self, air):
@@ -41,7 +39,7 @@ class AstronDatabaseInterface(object):
         # Pack up/count valid fields.
         fieldPacker = DCPacker()
         fieldCount = 0
-        for k,v in list(fields.items()):
+        for k,v in fields.items():
             field = dclass.getFieldByName(k)
             if not field:
                 self.notify.error('Creation request for %s object contains '
@@ -199,7 +197,7 @@ class AstronDatabaseInterface(object):
 
         fieldPacker = DCPacker()
         fieldCount = 0
-        for k,v in list(newFields.items()):
+        for k,v in newFields.items():
             field = dclass.getFieldByName(k)
             if not field:
                 self.notify.error('Update for %s(%d) object contains invalid'
@@ -301,8 +299,7 @@ class AstronDatabaseInterface(object):
             self.handleCreateObjectResp(di)
         elif msgType in (DBSERVER_OBJECT_GET_ALL_RESP,
                          DBSERVER_OBJECT_GET_FIELDS_RESP,
-                         DBSERVER_OBJECT_GET_FIELD_RESP,
-                         DBSERVER_GET_ESTATE):
+                         DBSERVER_OBJECT_GET_FIELD_RESP):
             self.handleQueryObjectResp(msgType, di)
         elif msgType == DBSERVER_OBJECT_SET_FIELD_IF_EQUALS_RESP:
             self.handleUpdateObjectResp(di, False)

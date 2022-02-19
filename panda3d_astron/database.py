@@ -1,10 +1,10 @@
 from panda3d.core import *
 from panda3d.direct import DCPacker
 from direct.directnotify import DirectNotifyGlobal
-from direct.distributed.MsgTypes import *
 from direct.distributed.ConnectionRepository import ConnectionRepository
 from direct.distributed.PyDatagram import PyDatagram
 from direct.distributed.PyDatagramIterator import PyDatagramIterator
+from panda3d_astron.msgtypes import *
 
 class AstronDatabaseInterface:
     """

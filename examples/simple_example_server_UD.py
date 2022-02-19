@@ -18,25 +18,10 @@ notify = directNotify.newCategory("udserver")
 # This class manages the UberDOGs, which in this case is just one, the login
 # manager.
 class SimpleServer(ShowBase):
+
     def __init__(self, server_framerate = 60):
         ShowBase.__init__(self)
-        # First, set up the idle task that forces a sleep
-        # that reduces the servers speed to a given framerate.
-        self.server_frametime = 1./server_framerate
-        self.taskMgr.add(self.idle, 'idle task', sort = 47)
-        # Start UberDOG
         self.startUberDOG()
-
-    # Idle task, so that the server doesn't eat 100% CPU
-    def idle(self, task):
-        # If this frame took less time than a frame should take,
-        # sleep for the difference.
-        elapsed = globalClock.getDt()
-        if elapsed < self.server_frametime:
-            sleep(self.server_frametime - elapsed)
-        else:
-            notify.warning("Framedrop! Elapsed time in frame: "+str(elapsed))
-        return Task.cont
 
     def startUberDOG(self):
         notify.info("Starting UberDOG")

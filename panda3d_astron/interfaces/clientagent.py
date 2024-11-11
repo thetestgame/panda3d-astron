@@ -132,7 +132,7 @@ class ClientAgentInterface(object):
         dg.add_uint32(doId)
         self.send(dg)
 
-    def clientAddInterest(self, client_channel: int, interest_id: int, parent_id: int, zone_id: int, callback: object = None) -> None:
+    def client_add_interest(self, client_channel: int, interest_id: int, parent_id: int, zone_id: int, callback: object = None) -> None:
         """
         Opens an interest on the behalf of the client. This, used in conjunction
         with add_interest: visible (or preferably, disabled altogether), will mitigate

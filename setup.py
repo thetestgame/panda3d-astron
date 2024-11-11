@@ -63,7 +63,8 @@ def main() -> int:
         url=get_package_url(module_name),
         packages=[module_name],
         install_requires=[
-            "panda3d"
+            "panda3d",
+            "panda3d-toolbox"
         ],
         classifiers=[
             'Programming Language :: Python :: 3',

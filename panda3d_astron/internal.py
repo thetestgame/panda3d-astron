@@ -115,7 +115,7 @@ class AstronInternalRepository(ConnectionRepository):
         self.__contextCounter = (self.__contextCounter + 1) & 0xFFFFFFFF
         return self.__contextCounter
     
-    def allocate_channel(self):
+    def allocate_channel(self) -> None:
         """
         Allocate an unused channel out of this AIR's configured channel space.
         This is also used to allocate IDs for DistributedObjects, since those
@@ -126,7 +126,7 @@ class AstronInternalRepository(ConnectionRepository):
     
     allocateChannel = allocate_channel
 
-    def deallocate_channel(self, channel):
+    def deallocate_channel(self, channel: int) -> None:
         """
         Return the previously-allocated channel back to the allocation pool.
         """
@@ -135,7 +135,7 @@ class AstronInternalRepository(ConnectionRepository):
 
     deallocateChannel = deallocate_channel
 
-    def register_for_channel(self, channel):
+    def register_for_channel(self, channel: int) -> None:
         """
         Register for messages on a specific Message Director channel.
         If the channel is already open by this AIR, nothing will happen.
@@ -152,7 +152,18 @@ class AstronInternalRepository(ConnectionRepository):
 
     registerForChannel = register_for_channel
 
-    def unregister_for_channel(self, channel):
+    def register_for_location_channel(self, parentId: int, zoneId: int) -> None:
+        """
+        Register for messages on a specific state server zone channel.
+        If the channel is already open by this AIR, nothing will happen.
+        """
+
+        channel = (parentId << 32) | zoneId
+        self.registerForChannel(channel)
+
+    registerForLocationChannel = register_for_location_channel
+
+    def unregister_for_channel(self, channel: int) -> None:
         """
         Unregister a channel subscription on the Message Director. The Message
         Director will cease to relay messages to this AIR sent on the channel.
@@ -169,7 +180,7 @@ class AstronInternalRepository(ConnectionRepository):
 
     unregisterForChannel = unregister_for_channel
 
-    def add_post_remove(self, dg):
+    def add_post_remove(self, dg: object) -> None:
         """
         Register a datagram with the Message Director that gets sent out if the
         connection is ever lost.
@@ -182,11 +193,12 @@ class AstronInternalRepository(ConnectionRepository):
         dg2.addServerControlHeader(msgtypes.CONTROL_ADD_POST_REMOVE)
         dg2.add_uint64(self.ourChannel)
         dg2.add_blob(dg.getMessage())
+
         self.send(dg2)
 
     addPostRemove = add_post_remove
 
-    def clear_post_remove(self):
+    def clear_post_remove(self) -> None:
         """
         Clear all datagrams registered with addPostRemove.
         This is useful if the Panda3D process is performing a clean exit. It may

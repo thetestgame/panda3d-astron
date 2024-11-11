@@ -39,7 +39,7 @@ class AstronClientRepository(ClientRepositoryBase):
         base.finalExitCallbacks.append(self.shutdown)
         self.message_handlers = {
             msgtypes.CLIENT_HELLO_RESP: self.handleHelloResp,
-            msgtypes.CLIENT_EJECT: self.,
+            msgtypes.CLIENT_EJECT: self.handleEject,
             msgtypes.CLIENT_ENTER_OBJECT_REQUIRED: self.handleEnterObjectRequired,
             msgtypes.CLIENT_ENTER_OBJECT_REQUIRED_OTHER: self.handleEnterObjectRequiredOther,
             msgtypes.CLIENT_ENTER_OBJECT_REQUIRED_OWNER: self.handleEnterObjectRequiredOwner,

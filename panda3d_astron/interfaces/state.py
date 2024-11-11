@@ -138,7 +138,7 @@ class StateServerInterface(object):
         dg.addServerHeader(doId, self.air.ourChannel, msgtypes.STATESERVER_OBJECT_GET_LOCATION)
         dg.add_uint32(ctx)
 
-        self.send(dg)
+        self.air.send(dg)
 
     def handle_get_location_resp(self, di: object) -> None:
         """
@@ -191,7 +191,7 @@ class StateServerInterface(object):
         dg.addUint32(ctx)
         dg.addUint32(doId)
 
-        self.send(dg)
+        self.air.send(dg)
 
     def handle_get_object_resp(self, di: object) -> None:
         """
@@ -255,7 +255,7 @@ class StateServerInterface(object):
         dg.add_uint32(ctx)
         dg.add_uint32(doId)
 
-        self.send(dg)
+        self.air.send(dg)
 
     def delete_ai_objects(self, channel: int) -> None:
         """
@@ -269,7 +269,7 @@ class StateServerInterface(object):
         dg = PyDatagram()
         dg.addServerHeader(self.air.serverId, channel, msgtypes.STATESERVER_DELETE_AI_OBJECTS)
 
-        self.send(dg)
+        self.air.send(dg)
 
     def register_delete_ai_objects_post_remove(self, server_id :int) -> None:
         """
@@ -292,7 +292,7 @@ class StateServerInterface(object):
         dg = PyDatagram()
         dg.addServerHeader(do.doId, self.ourChannel, msgtypes.STATESERVER_OBJECT_DELETE_RAM)
         dg.ad_uint32(do.doId)
-        self.send(dg)
+        self.air.send(dg)
 
     def get_object_field(self, doId: int, field: str, callback: object) -> None:
         """
@@ -312,7 +312,7 @@ class StateServerInterface(object):
         dg.add_uint32(doId)
         dg.add_string(field)
 
-        self.send(dg)
+        self.air.send(dg)
 
     def handle_get_field_resp(self, di: object) -> None:
         """
@@ -354,7 +354,7 @@ class StateServerInterface(object):
         for field in fields:
             dg.add_string(field)
 
-        self.send(dg)
+        self.air.send(dg)
 
     def handle_get_fields_resp(self, di: object) -> None:
         """
@@ -397,7 +397,7 @@ class StateServerInterface(object):
         dg.add_uint32(ctx)
         dg.add_uint32(doId)
 
-        self.send(dg)
+        self.air.send(dg)
 
     def handle_get_object_all_resp(self,di: object) -> None:
         """
@@ -457,7 +457,7 @@ class StateServerInterface(object):
         dg.add_string(field)
         dg.add_string(value)
 
-        self.send(dg)
+        self.air.send(dg)
 
     def set_object_fields(self, doId: int, fields: dict) -> None:
         """
@@ -473,7 +473,7 @@ class StateServerInterface(object):
             dg.add_string(field)
             dg.add_string(value)
 
-        self.send(dg)
+        self.air.send(dg)
 
     def delete_object_field(self, doId: int, field: str) -> None:
         """
@@ -486,7 +486,7 @@ class StateServerInterface(object):
         dg.add_uint32(doId)
         dg.add_string(field)
 
-        self.send(dg)
+        self.air.send(dg)
 
     def delete_object_fields(self, doId: int, fields: list) -> None:
         """
@@ -501,7 +501,7 @@ class StateServerInterface(object):
         for field in fields:
             dg.add_string(field)
 
-        self.send(dg)
+        self.air.send(dg)
 
     def delete_object(self, doId: int) -> None:
         """
@@ -513,7 +513,7 @@ class StateServerInterface(object):
 
         dg.add_uint32(doId)
 
-        self.send(dg)
+        self.air.send(dg)
     
     def set_location(self, do: object, parentId: int, zoneId: int) -> None:
         """
@@ -526,7 +526,7 @@ class StateServerInterface(object):
         dg.add_uint32(parentId)
         dg.add_uint32(zoneId)
 
-        self.send(dg)
+        self.air.send(dg)
 
     def set_owner(self, doId: int, newOwner: int) -> None:
         """
@@ -537,7 +537,7 @@ class StateServerInterface(object):
         dg = PyDatagram()
         dg.addServerHeader(doId, self.air.ourChannel, msgtypes.STATESERVER_OBJECT_SET_OWNER)
         dg.add_uint64(newOwner)
-        self.send(dg)
+        self.air.send(dg)
 
     def set_ai(self, doId: int, aiChannel: int) -> None:
         """
@@ -548,4 +548,4 @@ class StateServerInterface(object):
         dg = PyDatagram()
         dg.addServerHeader(doId, aiChannel, msgtypes.STATESERVER_OBJECT_SET_AI)
         dg.add_uint64(aiChannel)
-        self.send(dg)
+        self.air.send(dg)

@@ -20,7 +20,7 @@ from panda3d.direct import STUint16, STUint32, DCPacker
 from panda3d_astron import msgtypes
 from panda3d_astron.interfaces import clientagent, database
 from panda3d_astron.interfaces import events, state
-from panda3d_astron.interfaces import messenger
+from panda3d_astron.interfaces import messenger as net_messenger
 from panda3d_toolbox import runtime, utils
 
 import collections
@@ -48,7 +48,8 @@ class AstronInternalRepository(ConnectionRepository):
 
         if connectMethod is None:
             connectMethod = self.CM_NATIVE
-        
+
+        self.interfacesReady = False
         ConnectionRepository.__init__(self, 
             connectMethod = connectMethod, 
             config = runtime.config, 
@@ -75,11 +76,12 @@ class AstronInternalRepository(ConnectionRepository):
         self.ourChannel = self.allocateChannel()
         self.__contextCounter = 0
 
-        self.database       = database.AstronDatabaseInterface(self)
-        self.netMessenger   = messenger.NetMessengerInterface(self)
-        self.stateServer    = state.StateServerInterface(self)
-        self.clientAgent    = clientagent.ClientAgentInterface(self)
-        self.events         = events.EventLoggerInterface(self)
+        self.database        = database.AstronDatabaseInterface(self)
+        self.netMessenger    = net_messenger.NetMessengerInterface(self)
+        self.stateServer     = state.StateServerInterface(self)
+        self.clientAgent     = clientagent.ClientAgentInterface(self)
+        self.events          = events.EventLoggerInterface(self)
+        self.interfacesReady = True
 
         self.readDCFile(dcFileNames)
 
@@ -88,25 +90,25 @@ class AstronInternalRepository(ConnectionRepository):
         Custom getattr method to allow for easy access to the interfaces. This also 
         serves as a legacy bridge from the old way of commanding the AIR to the new way.
         """
+    
+        try:
+            return object.__getattribute__(self, key)
+        except AttributeError:  
+            if not self.interfacesReady:
+                raise
 
-        if key.startswith('handle_'):
-            return AttributeError('No attribute named %s' % key)
-        
-        snake_case_key = utils.get_snake_case(key)
-        if hasattr(self, snake_case_key):
-            return getattr(self, snake_case_key)
-        elif hasattr(self.database, snake_case_key):
-            return getattr(self.database, snake_case_key)
-        elif hasattr(self.netMessenger, snake_case_key):
-            return getattr(self.netMessenger, snake_case_key)
-        elif hasattr(self.stateServer, snake_case_key):
-            return getattr(self.stateServer, snake_case_key)
-        elif hasattr(self.clientAgent, snake_case_key):
-            return getattr(self.clientAgent, snake_case_key)
-        elif hasattr(self.events, snake_case_key):
-            return getattr(self.events, snake_case_key)
-        else:
-            raise AttributeError('No attribute named %s' % key)
+            if hasattr(self.database, key):
+                getattr(self.database, key)
+            elif hasattr(self.netMessenger, key):
+                return getattr(self.netMessenger, key)
+            elif hasattr(self.stateServer, key):
+                return getattr(self.stateServer, key)
+            elif hasattr(self.clientAgent, key):
+                return getattr(self.clientAgent, key)
+            elif hasattr(self.events, key):
+                return getattr(self.events, key)
+        except:
+            raise
 
     def get_context(self) -> int:
         """
@@ -124,6 +126,8 @@ class AstronInternalRepository(ConnectionRepository):
         """
 
         return self.channelAllocator.allocate()
+    
+    allocateChannel = allocate_channel
 
     def deallocate_channel(self, channel):
         """
@@ -131,6 +135,8 @@ class AstronInternalRepository(ConnectionRepository):
         """
 
         self.channelAllocator.free(channel)
+
+    deallocateChannel = deallocate_channel
 
     def register_for_channel(self, channel):
         """
@@ -147,6 +153,8 @@ class AstronInternalRepository(ConnectionRepository):
         dg.addChannel(channel)
         self.send(dg)
 
+    registerForChannel = register_for_channel
+
     def unregister_for_channel(self, channel):
         """
         Unregister a channel subscription on the Message Director. The Message
@@ -161,6 +169,8 @@ class AstronInternalRepository(ConnectionRepository):
         dg.addServerControlHeader(msgtypes.CONTROL_REMOVE_CHANNEL)
         dg.addChannel(channel)
         self.send(dg)
+
+    unregisterForChannel = unregister_for_channel
 
     def add_post_remove(self, dg):
         """
@@ -177,6 +187,8 @@ class AstronInternalRepository(ConnectionRepository):
         dg2.add_blob(dg.getMessage())
         self.send(dg2)
 
+    addPostRemove = add_post_remove
+
     def clear_post_remove(self):
         """
         Clear all datagrams registered with addPostRemove.
@@ -189,6 +201,8 @@ class AstronInternalRepository(ConnectionRepository):
         dg.addServerControlHeader(msgtypes.CONTROL_CLEAR_POST_REMOVES)
         dg.add_uint64(self.ourChannel)
         self.send(dg)
+
+    clearPostRemove = clear_post_remove
 
     def handle_datagram(self, di: object) -> None:
         """
@@ -207,6 +221,8 @@ class AstronInternalRepository(ConnectionRepository):
             self.netMessenger.handle_datagram(msg_type, di)
         else:
             self.notify.warning('Received message with unknown MsgType=%d' % msg_type)
+
+    handleDatagram = handle_datagram
 
     def sendUpdate(self, do, fieldName, args):
         """
@@ -260,6 +276,7 @@ class AstronInternalRepository(ConnectionRepository):
             dg.addUint32(0)
             dg.addUint32(0)
             self.send(dg)
+
             # DEFAULTS_OTHER isn't implemented yet, so we chase it with a SET_FIELDS
             dg = PyDatagram()
             dg.addServerHeader(doId, self.ourChannel, msgtypes.STATESERVER_OBJECT_SET_FIELDS)
@@ -267,6 +284,7 @@ class AstronInternalRepository(ConnectionRepository):
             dg.addUint16(fieldCount)
             dg.appendData(fieldPacker.getBytes())
             self.send(dg)
+            
             # Now slide it into the zone we expect to see it in (so it
             # generates onto us with all of the fields in place)
             dg = PyDatagram()

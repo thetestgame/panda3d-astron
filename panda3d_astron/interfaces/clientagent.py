@@ -52,7 +52,7 @@ class ClientAgentInterface(object):
         dg.addServerHeader(clientId, self.air.ourChannel, msgtypes.CLIENTAGENT_GET_NETWORK_ADDRESS)
         dg.add_uint32(ctx)
 
-        self.send(dg)
+        self.air.send(dg)
 
     def handle_get_network_address_resp(self, di: object) -> None:
         """
@@ -83,7 +83,7 @@ class ClientAgentInterface(object):
         dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_EJECT)
         dg.add_uint16(reasonCode)
         dg.add_string(reason)
-        self.send(dg)
+        self.air.send(dg)
 
     def set_client_state(self, clientChannel, state):
         """
@@ -94,7 +94,7 @@ class ClientAgentInterface(object):
         dg = PyDatagram()
         dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_SET_STATE)
         dg.add_uint16(state)
-        self.send(dg)
+        self.air.send(dg)
 
     def set_allow_client_send(self, do, channelId, fieldNameList=[]):
         """
@@ -118,7 +118,7 @@ class ClientAgentInterface(object):
         for fieldId in fieldIds:
             dg.add_uint16(fieldId)
 
-        self.send(dg)
+        self.air.send(dg)
 
     def client_add_session_object(self, clientChannel, doId):
         """
@@ -130,7 +130,7 @@ class ClientAgentInterface(object):
         dg = PyDatagram()
         dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_ADD_SESSION_OBJECT)
         dg.add_uint32(doId)
-        self.send(dg)
+        self.air.send(dg)
 
     def client_add_interest(self, client_channel: int, interest_id: int, parent_id: int, zone_id: int, callback: object = None) -> None:
         """
@@ -144,7 +144,7 @@ class ClientAgentInterface(object):
         dg.add_uint16(interest_id)
         dg.add_uint32(parent_id)
         dg.add_uint32(zone_id)
-        self.send(dg)
+        self.air.send(dg)
 
         if callback != None:
             ctx = (client_channel, interest_id)
@@ -152,6 +152,9 @@ class ClientAgentInterface(object):
 
     def client_add_interest_multiple(self, client_channel: int, interest_id: int, parent_id: int, zone_list: int, callback: object = None) -> None:
         """
+        Opens multiple interests on the behalf of the client. This, used in conjunction
+        with add_interest: visible (or preferably, disabled altogether), will mitigate
+        possible security risks.
         """
 
         dg = PyDatagram()
@@ -166,16 +169,19 @@ class ClientAgentInterface(object):
             ctx = (client_channel, interest_id)
             self.__callbacks[ctx] = callback
 
-        self.send(dg)
+        self.air.send(dg)
 
     def client_remove_interest(self, client_channel: int, interest_id: int, callback: object = None) -> None:
         """
+        Removes an interest on the behalf of the client. This, used in conjunction
+        with add_interest: visible (or preferably, disabled altogether), will mitigate
+        possible security risks.
         """
 
         dg = PyDatagram()
         dg.addServerHeader(client_channel, self.air.ourChannel, msgtypes.CLIENTAGENT_REMOVE_INTEREST)
         dg.add_uint16(interest_id)
-        self.send(dg)
+        self.air.send(dg)
 
         if callback != None:
             ctx = (client_channel, interest_id)
@@ -183,7 +189,8 @@ class ClientAgentInterface(object):
 
     def handle_client_agent_interest_done_resp(self, di: PyDatagramIterator) -> None:
         """
-        Sent by the ClientAgent to the caller of CLIENTAGENT_ADD_INTEREST to inform them that the interest operation has completed.
+        Sent by the ClientAgent to the caller of CLIENTAGENT_ADD_INTEREST to inform them 
+        that the interest operation has completed.
         """
 
         client_channel  = di.get_uint64()
@@ -191,7 +198,6 @@ class ClientAgentInterface(object):
         ctx = (client_channel, interest_id)
 
         if ctx not in self.__callbacks:
-            self.notify.warning('Received unexpected CLIENTAGENT_DONE_INTEREST_RESP (ctx: (%s, %s))' % ctx)
             return
 
         try:

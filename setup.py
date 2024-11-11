@@ -2,7 +2,7 @@
 Setup script for building the module into a package for publishing to PyPI.
 """
 
-from setuptools import setup
+from setuptools import setup, find_namespace_packages
 import sys
 import os
 
@@ -61,7 +61,7 @@ def main() -> int:
         author='Jordan Maxwell',
         maintainer='Jordan Maxwell',
         url=get_package_url(module_name),
-        packages=[module_name],
+        packages=find_namespace_packages(),
         install_requires=[
             "panda3d",
             "panda3d-toolbox"

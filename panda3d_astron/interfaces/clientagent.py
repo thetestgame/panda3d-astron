@@ -2,6 +2,8 @@
 Client Agent Interface for Astron
 """
 
+import enum
+
 from direct.directnotify import DirectNotifyGlobal
 from direct.distributed.PyDatagram import PyDatagram
 from direct.distributed.PyDatagramIterator import PyDatagramIterator
@@ -9,6 +11,52 @@ from direct.distributed.PyDatagramIterator import PyDatagramIterator
 from panda3d import direct
 from panda3d import core as p3d
 from panda3d_astron import msgtypes
+
+class ClientState(enum.IntEnum):
+    """
+    Possible states for a client connection. These are used to track the state of a client
+    and control the client's access to the game world.
+    """
+
+    CLIENT_STATE_NEW            = 0
+    CLIENT_STATE_ESTABLISHED    = 2
+    CLIENT_STATE_DISCONNECTED   = 3
+
+class ClientEjectCodes(enum.IntEnum):
+    """
+    Constant network eject codes that are used to indicate the reason for ejecting a client.
+    """
+
+    EJECT_OVERSIZED_DATAGRAM             = 106
+    EJECT_INVALID_FIRST_MSG              = 107
+    EJECT_INVALID_MSGTYPE                = 108
+    EJECT_INVALID_MSGSIZE                = 109
+
+    EJECT_SANDBOX_VIOLATION              = 113
+    EJECT_ILLEGAL_INTEREST_OP            = 115
+    EJECT_MANIP_INVALID_OBJECT           = 117
+    EJECT_PERM_VIOLATION_SET_FIELD       = 118
+    EJECT_PERM_VIOLATION_SET_LOCATION    = 119
+
+    EJECT_LOGIN_ISSUE                    = 122
+    EJECT_LOGGED_IN_ELSE_WHERE           = 123
+
+    EJECT_INVALID_VERSION                = 124
+    EJECT_INVALID_HASH                   = 125
+    EJECT_ADMIN_ACCESS_VIOLATION         = 126
+
+    EJECT_ADMIN_EJECTED                  = 151
+    EJECT_MOD_EJECTED                    = 152
+    EJECT_ANTI_CHEAT_EJECTED             = 153
+    EJECT_GAMESERVER_MAINTENANCE         = 154
+    EJECT_GAMESERVER_PROCESSING_ERROR    = 155
+
+    EJECT_HEARTBEAT_TIMEOUT              = 345
+    EJECT_SERVER_PROCESSING_ERROR        = 346
+    EJECT_CLIENT_AGENT_IO_SEND_ERROR     = 347
+    EJECT_CLIENT_AGENT_IO_READ_ERROR     = 348
+    EJECT_SERVER_IO_SEND_ERROR           = 349
+    EJECT_SERVER_IO_READ_ERROR           = 350
 
 class ClientAgentInterface(object):
     """
@@ -61,11 +109,11 @@ class ClientAgentInterface(object):
         Handle the response to a get_network_address request.
         """
 
-        ctx         = di.get_uint32()
-        remoteIp    = di.get_string()
-        remotePort  = di.get_uint16()
-        localIp     = di.get_string()
-        localPort   = di.get_uint16()
+        ctx        = di.get_uint32()
+        remoteIp   = di.get_string()
+        remotePort = di.get_uint16()
+        localIp    = di.get_string()
+        localPort  = di.get_uint16()
 
         if ctx not in self.__callbacks:
             self.notify.warning('Received unexpected CLIENTAGENT_GET_NETWORK_ADDRESS_RESP (ctx: %d)' % ctx)
@@ -76,31 +124,61 @@ class ClientAgentInterface(object):
         finally:
             del self.__callbacks[ctx]
 
-    def eject(self, clientChannel, reasonCode, reason):
+    def eject(self, clientChannel: int, reasonCode: int, reason: str) -> None:
         """
         Kicks the client residing at the specified clientChannel, using the specifed reasoning.
         """
 
+        # If we were given an enum, convert it to its value
+        if hasattr(reasonCode, 'value'):
+            reasonCode = reasonCode.value
+
+        # Build and send the datagram
         dg = PyDatagram()
         dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_EJECT)
         dg.add_uint16(reasonCode)
         dg.add_string(reason)
+
         self.air.send(dg)
 
     Eject = eject
 
-    def set_client_state(self, clientChannel, state):
+    def set_client_state(self, clientChannel: int, state: int) -> None:
         """
         Sets the state of the client on the CA.
         Useful for logging in and logging out, and for little else.
         """
 
+        # If we were given an enum, convert it to its value
+        if hasattr(state, 'value'):
+            state = state.value
+
+        # Build and send the datagram
         dg = PyDatagram()
         dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_SET_STATE)
         dg.add_uint16(state)
+
         self.air.send(dg)
 
     setClientState = set_client_state
+
+    def set_client_state_new(self, clientChannel: int) -> None:
+        """
+        Sets the state of the client to CLIENT_STATE_NEW.
+        """
+
+        self.set_client_state(clientChannel, ClientState.CLIENT_STATE_NEW)
+
+    setClientStateNew = set_client_state_new
+
+    def set_client_state_established(self, clientChannel: int) -> None:
+        """
+        Sets the state of the client to CLIENT_STATE_ESTABLISHED.
+        """
+
+        self.set_client_state(clientChannel, ClientState.CLIENT_STATE_ESTABLISHED)
+
+    setClientStateEstablished = set_client_state_established
 
     def set_allow_client_send(self, do, channelId, fieldNameList=[]):
         """
@@ -213,8 +291,8 @@ class ClientAgentInterface(object):
         that the interest operation has completed.
         """
 
-        client_channel  = di.get_uint64()
-        interest_id     = di.get_uint16()
+        client_channel = di.get_uint64()
+        interest_id    = di.get_uint16()
         ctx = (client_channel, interest_id)
 
         if ctx not in self.__callbacks:

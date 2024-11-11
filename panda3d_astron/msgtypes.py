@@ -10,6 +10,12 @@ CLIENT_HELLO_RESP                                       = 2
 CLIENT_DISCONNECT                                       = 3
 CLIENT_EJECT                                            = 4
 CLIENT_HEARTBEAT                                        = 5
+
+# These are custom messages added ontop of Astron for the purposes
+# of extending the client protocol. They use CLIENTAGENT_SEND_DATAGRAM
+# internal message to broadcast these to the client.
+CLIENT_SYSTEM_MESSAGE                                   = 6
+
 CLIENT_OBJECT_SET_FIELD                                 = 120
 CLIENT_OBJECT_SET_FIELDS                                = 121
 CLIENT_OBJECT_LEAVING                                   = 132

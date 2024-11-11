@@ -544,7 +544,6 @@ class StateServerInterface(object):
 
     requestDelete = request_delete
 
-
     def set_owner(self, doId: int, newOwner: int) -> None:
         """
         Sets the owner of a DistributedObject. This will enable the new owner to send "ownsend" fields,

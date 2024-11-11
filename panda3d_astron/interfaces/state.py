@@ -198,11 +198,11 @@ class StateServerInterface(object):
         Handles STATESERVER_OBJECT_GET_ALL_RESP messages
         """
 
-        ctx         = di.getUint32()
-        doId        = di.getUint32()
-        parentId    = di.getUint32()
-        zoneId      = di.getUint32()
-        classId     = di.getUint16()
+        ctx         = di.get_uint32()
+        doId        = di.get_uint32()
+        parentId    = di.get_uint32()
+        zoneId      = di.get_uint32()
+        classId     = di.get_uint16()
 
         if ctx not in self.__callbacks:
             self.notify.warning('Received unexpected STATESERVER_OBJECT_GET_ALL_RESP (ctx: %d)' % ctx)

@@ -50,7 +50,7 @@ class ClientAgentInterface(object):
 
         dg = PyDatagram()
         dg.addServerHeader(clientId, self.air.ourChannel, msgtypes.CLIENTAGENT_GET_NETWORK_ADDRESS)
-        dg.addUint32(ctx)
+        dg.add_uint32(ctx)
 
         self.send(dg)
 
@@ -59,11 +59,11 @@ class ClientAgentInterface(object):
         Handle the response to a get_network_address request.
         """
 
-        ctx         = di.getUint32()
-        remoteIp    = di.getString()
-        remotePort  = di.getUint16()
-        localIp     = di.getString()
-        localPort   = di.getUint16()
+        ctx         = di.get_uint32()
+        remoteIp    = di.get_string()
+        remotePort  = di.get_uint16()
+        localIp     = di.get_string()
+        localPort   = di.get_uint16()
 
         if ctx not in self.__callbacks:
             self.notify.warning('Received unexpected CLIENTAGENT_GET_NETWORK_ADDRESS_RESP (ctx: %d)' % ctx)
@@ -156,9 +156,9 @@ class ClientAgentInterface(object):
 
         dg = PyDatagram()
         dg.addServerHeader(client_channel, self.air.ourChannel, msgtypes.CLIENTAGENT_ADD_INTEREST_MULTIPLE)
-        dg.add_Uint16(interest_id)
-        dg.add_Uint32(parent_id)
-        dg.add_Uint16(len(zone_list))
+        dg.add_uint16(interest_id)
+        dg.add_uint32(parent_id)
+        dg.add_uint16(len(zone_list))
         for zoneId in zone_list:
             dg.add_uint32(zoneId)
 

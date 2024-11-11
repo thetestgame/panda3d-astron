@@ -271,6 +271,8 @@ class StateServerInterface(object):
 
         self.air.send(dg)
 
+    deleteAIObjects = delete_ai_objects
+
     def register_delete_ai_objects_post_remove(self, server_id :int) -> None:
         """
         Registers the delete_ai_objects method to be called when the AI disconnects.
@@ -281,6 +283,8 @@ class StateServerInterface(object):
 
         dg.addChannel(self.air.ourChannel)
         self.air.add_post_remove(dg)
+
+    registerDeleteAIObjectsPostRemove = register_delete_ai_objects_post_remove
 
     def request_delete(self, do: object) -> None:
         """
@@ -293,6 +297,8 @@ class StateServerInterface(object):
         dg.addServerHeader(do.doId, self.ourChannel, msgtypes.STATESERVER_OBJECT_DELETE_RAM)
         dg.ad_uint32(do.doId)
         self.air.send(dg)
+
+    requestDelete = request_delete
 
     def get_object_field(self, doId: int, field: str, callback: object) -> None:
         """
@@ -313,6 +319,8 @@ class StateServerInterface(object):
         dg.add_string(field)
 
         self.air.send(dg)
+
+    getObjectField = get_object_field
 
     def handle_get_field_resp(self, di: object) -> None:
         """
@@ -356,6 +364,8 @@ class StateServerInterface(object):
 
         self.air.send(dg)
 
+    getObjectFields = get_object_fields
+
     def handle_get_fields_resp(self, di: object) -> None:
         """
         Handles STATESERVER_OBJECT_GET_FIELDS_RESP messages
@@ -398,6 +408,8 @@ class StateServerInterface(object):
         dg.add_uint32(doId)
 
         self.air.send(dg)
+
+    getObjectAll = get_object_all
 
     def handle_get_object_all_resp(self,di: object) -> None:
         """
@@ -459,6 +471,8 @@ class StateServerInterface(object):
 
         self.air.send(dg)
 
+    setObjectField = set_object_field
+
     def set_object_fields(self, doId: int, fields: dict) -> None:
         """
         Set multiple fields on an object.
@@ -475,6 +489,8 @@ class StateServerInterface(object):
 
         self.air.send(dg)
 
+    setObjectFields = set_object_fields
+
     def delete_object_field(self, doId: int, field: str) -> None:
         """
         Delete a single field from an object.
@@ -487,6 +503,8 @@ class StateServerInterface(object):
         dg.add_string(field)
 
         self.air.send(dg)
+
+    deleteObjectField = delete_object_field
 
     def delete_object_fields(self, doId: int, fields: list) -> None:
         """
@@ -503,6 +521,8 @@ class StateServerInterface(object):
 
         self.air.send(dg)
 
+    deleteObjectFields = delete_object_fields
+
     def delete_object(self, doId: int) -> None:
         """
         Delete an object from the State Server.
@@ -514,6 +534,8 @@ class StateServerInterface(object):
         dg.add_uint32(doId)
 
         self.air.send(dg)
+
+    deleteObject = delete_object
     
     def set_location(self, do: object, parentId: int, zoneId: int) -> None:
         """
@@ -528,6 +550,10 @@ class StateServerInterface(object):
 
         self.air.send(dg)
 
+    # Legacy methods for the original Panda3D Distributed Object implementation
+    setLocation = set_location
+    sendSetLocation = set_location
+
     def set_owner(self, doId: int, newOwner: int) -> None:
         """
         Sets the owner of a DistributedObject. This will enable the new owner to send "ownsend" fields,
@@ -539,6 +565,8 @@ class StateServerInterface(object):
         dg.add_uint64(newOwner)
         self.air.send(dg)
 
+    setOwner = set_owner
+
     def set_ai(self, doId: int, aiChannel: int) -> None:
         """
         Sets the AI of the specified DistributedObjectAI to be the specified channel.
@@ -549,3 +577,30 @@ class StateServerInterface(object):
         dg.addServerHeader(doId, aiChannel, msgtypes.STATESERVER_OBJECT_SET_AI)
         dg.add_uint64(aiChannel)
         self.air.send(dg)
+
+    setAI = set_ai
+
+    def generate_with_required(self, do: object, parentId: int, zoneId: int, optionalFields: list = []) -> None:
+        """
+        Generate an object onto the State Server, choosing an ID from the pool.
+        You should use do.generateWithRequired(...) instead. This is not meant
+        to be called directly unless you really know what you are doing.
+        """
+
+        doId = self.air.allocate_channel()
+        self.generate_with_required_and_id(do, doId, parentId, zoneId, optionalFields)
+
+    generateWithRequired = generate_with_required
+
+    def generate_with_required_and_id(self, do: object, doId: int, parentId: int, zoneId: int, optionalFields: list = []) -> None:
+        """
+        Generate an object onto the State Server, specifying its ID and location.
+        You should use do.generateWithRequiredAndId(...) instead. This is not
+        meant to be called directly unless you really know what you are doing.
+        """
+
+        do.doId = doId
+        self.addDOToTables(do, location=(parentId, zoneId))
+        do.sendGenerateWithRequired(self, parentId, zoneId, optionalFields)
+
+    generateWithRequiredAndId = generate_with_required_and_id

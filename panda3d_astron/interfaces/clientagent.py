@@ -37,7 +37,7 @@ class ClientAgentInterface(object):
         else:
             self.notify.warning(f"Received unknown message type {msg_type} from client agent")
 
-    def get_network_address(self, clientId: int, callback: object) -> None:
+    def get_client_network_address(self, clientId: int, callback: object) -> None:
         """
         Get the endpoints of a client connection.
         You should already be sure the client actually exists, otherwise the
@@ -53,6 +53,8 @@ class ClientAgentInterface(object):
         dg.add_uint32(ctx)
 
         self.air.send(dg)
+
+    getClientNetworkAddress = get_client_network_address
 
     def handle_get_network_address_resp(self, di: object) -> None:
         """
@@ -85,6 +87,8 @@ class ClientAgentInterface(object):
         dg.add_string(reason)
         self.air.send(dg)
 
+    Eject = eject
+
     def set_client_state(self, clientChannel, state):
         """
         Sets the state of the client on the CA.
@@ -95,6 +99,8 @@ class ClientAgentInterface(object):
         dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_SET_STATE)
         dg.add_uint16(state)
         self.air.send(dg)
+
+    setClientState = set_client_state
 
     def set_allow_client_send(self, do, channelId, fieldNameList=[]):
         """
@@ -120,7 +126,9 @@ class ClientAgentInterface(object):
 
         self.air.send(dg)
 
-    def client_add_session_object(self, clientChannel, doId):
+    setAllowClientSend = set_allow_client_send
+
+    def client_add_session_object(self, clientChannel: int, doId: int) -> None:
         """
         Declares the specified DistributedObject to be a "session object",
         meaning that it is destroyed when the client disconnects.
@@ -130,7 +138,10 @@ class ClientAgentInterface(object):
         dg = PyDatagram()
         dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_ADD_SESSION_OBJECT)
         dg.add_uint32(doId)
+
         self.air.send(dg)
+
+    clientAddSessionObject = client_add_session_object
 
     def client_add_interest(self, client_channel: int, interest_id: int, parent_id: int, zone_id: int, callback: object = None) -> None:
         """
@@ -144,11 +155,14 @@ class ClientAgentInterface(object):
         dg.add_uint16(interest_id)
         dg.add_uint32(parent_id)
         dg.add_uint32(zone_id)
+
         self.air.send(dg)
 
         if callback != None:
             ctx = (client_channel, interest_id)
             self.__callbacks[ctx] = callback
+
+    clientAddInterest = client_add_interest
 
     def client_add_interest_multiple(self, client_channel: int, interest_id: int, parent_id: int, zone_list: int, callback: object = None) -> None:
         """
@@ -161,6 +175,7 @@ class ClientAgentInterface(object):
         dg.addServerHeader(client_channel, self.air.ourChannel, msgtypes.CLIENTAGENT_ADD_INTEREST_MULTIPLE)
         dg.add_uint16(interest_id)
         dg.add_uint32(parent_id)
+
         dg.add_uint16(len(zone_list))
         for zoneId in zone_list:
             dg.add_uint32(zoneId)
@@ -170,6 +185,8 @@ class ClientAgentInterface(object):
             self.__callbacks[ctx] = callback
 
         self.air.send(dg)
+
+    clientAddInterestMultiple = client_add_interest_multiple
 
     def client_remove_interest(self, client_channel: int, interest_id: int, callback: object = None) -> None:
         """
@@ -181,11 +198,14 @@ class ClientAgentInterface(object):
         dg = PyDatagram()
         dg.addServerHeader(client_channel, self.air.ourChannel, msgtypes.CLIENTAGENT_REMOVE_INTEREST)
         dg.add_uint16(interest_id)
+        
         self.air.send(dg)
 
         if callback != None:
             ctx = (client_channel, interest_id)
             self.__callbacks[ctx] = callback
+
+    clientRemoveInterest = client_remove_interest
 
     def handle_client_agent_interest_done_resp(self, di: PyDatagramIterator) -> None:
         """

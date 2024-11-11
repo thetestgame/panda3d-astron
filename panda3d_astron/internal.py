@@ -13,17 +13,14 @@ from direct.distributed.MsgTypes import *
 from direct.showbase import ShowBase # __builtin__.config
 from direct.task.TaskManagerGlobal import * # taskMgr
 from direct.distributed.ConnectionRepository import ConnectionRepository
-from direct.distributed.PyDatagramIterator import PyDatagramIterator
 
 from panda3d import core as p3d
-from panda3d.direct import STUint16, STUint32, DCPacker
+from panda3d.direct import DCPacker
 from panda3d_astron import msgtypes
 from panda3d_astron.interfaces import clientagent, database
 from panda3d_astron.interfaces import events, state
 from panda3d_astron.interfaces import messenger as net_messenger
-from panda3d_toolbox import runtime, utils
-
-import collections
+from panda3d_toolbox import runtime
 
 class AstronInternalRepository(ConnectionRepository):
     """
@@ -224,16 +221,18 @@ class AstronInternalRepository(ConnectionRepository):
 
     handleDatagram = handle_datagram
 
-    def sendUpdate(self, do, fieldName, args):
+    def send_update(self, do, fieldName, args):
         """
         Send a field update for the given object.
         You should use do.sendUpdate(...) instead. This is not meant to be
         called directly unless you really know what you are doing.
         """
 
-        self.sendUpdateToChannel(do, do.doId, fieldName, args)
+        self.send_update_to_channel(do, do.doId, fieldName, args)
 
-    def sendUpdateToChannel(self, do, channelId, fieldName, args):
+    sendUpdate = send_update
+
+    def send_update_to_channel(self, do, channelId, fieldName, args):
         """
         Send an object field update to a specific channel.
         This is useful for directing the update to a specific client or node,
@@ -246,6 +245,8 @@ class AstronInternalRepository(ConnectionRepository):
         field = dclass.getFieldByName(fieldName)
         dg = field.aiFormatUpdate(do.doId, channelId, self.ourChannel, args)
         self.send(dg)
+    
+    sendUpdateToChannel = send_update_to_channel
 
     def sendActivate(self, doId, parentId, zoneId, dclass=None, fields=None):
         """
@@ -300,36 +301,6 @@ class AstronInternalRepository(ConnectionRepository):
             dg.addUint32(zoneId)
             self.send(dg)
 
-    # Legacy method for the original Panda3D Distributed Object implementation
-    def sendSetLocation(self, do: object, parentId: int, zoneId: int) -> None:
-        """
-        Send a SET_LOCATION message to the State Server to move the object to the
-        specified parentId/zoneId.
-        """
-
-        self.stateServer.set_location(do, parentId, zoneId)
-
-    def generateWithRequired(self, do, parentId, zoneId, optionalFields=[]):
-        """
-        Generate an object onto the State Server, choosing an ID from the pool.
-        You should use do.generateWithRequired(...) instead. This is not meant
-        to be called directly unless you really know what you are doing.
-        """
-
-        doId = self.allocateChannel()
-        self.generateWithRequiredAndId(do, doId, parentId, zoneId, optionalFields)
-
-    def generateWithRequiredAndId(self, do, doId, parentId, zoneId, optionalFields=[]):
-        """
-        Generate an object onto the State Server, specifying its ID and location.
-        You should use do.generateWithRequiredAndId(...) instead. This is not
-        meant to be called directly unless you really know what you are doing.
-        """
-
-        do.doId = doId
-        self.addDOToTables(do, location=(parentId, zoneId))
-        do.sendGenerateWithRequired(self, parentId, zoneId, optionalFields)
-
     def connect(self, host: str, port: int = 7199) -> None:
         """
         Connect to a Message Director. The airConnected message is sent upon
@@ -363,7 +334,7 @@ class AstronInternalRepository(ConnectionRepository):
         if self.serverId:
             self.stateServer.register_delete_ai_objects_post_remove(self.serverId)
 
-        messenger.send('airConnected')
+        runtime.messenger.send('airConnected')
         self.handle_connected()
 
     def __connect_failed(self, code: int, explanation: str, host: str, port: int) -> None:
@@ -389,3 +360,5 @@ class AstronInternalRepository(ConnectionRepository):
         # This should be overridden by a subclass if unexpectedly losing connection
         # is okay.
         self.notify.error('Lost connection to gameserver!')
+
+    lostConnection = lost_connection # Legacy carry-over

@@ -213,6 +213,44 @@ class AstronInternalRepository(ConnectionRepository):
 
     clearPostRemove = clear_post_remove
 
+    def get_account_id_from_channel(self, channel: int) -> int:
+        """
+        Get the account ID of the client connected to the specified channel.
+        """
+
+        return (channel >> 32) & 0xFFFFFFFF
+    
+    getAccountIdFromChannel = get_account_id_from_channel
+
+    def get_avatar_id_from_channel(self, channel: int) -> int:
+        """
+        Get the avatar ID of the client connected to the specified channel.
+        """
+
+        return channel & 0xFFFFFFFF
+
+    getAvatarIdFromChannel = get_avatar_id_from_channel
+
+    def get_account_id_from_sender(self) -> int:
+        """
+        Get the account ID of the sender of the current message. This only works if the
+        client agent set_client_account_id was called previously.
+        """
+
+        return self.get_account_id_from_channel(self.getMsgSender())
+    
+    getAccountIdFromSender = get_account_id_from_sender
+
+    def get_avatar_id_from_sender(self) -> int:
+        """
+        Get the avatar ID of the sender of the current message. This only works if the
+        client agent set_client_id was called previously.
+        """
+
+        return self.get_avatar_id_from_channel(self.getMsgSender())
+    
+    getAvatarIdFromSender = get_avatar_id_from_sender
+
     def handle_datagram(self, di: object) -> None:
         """
         Handle a datagram received from the Message Director.

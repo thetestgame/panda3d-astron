@@ -1,3 +1,10 @@
+"""
+This module contains the AstronClientRepository class, which is a subclass of the ClientRepositoryBase class
+from the Panda3D direct.distributed module. This class is used to implement the client-side of the Astron
+distributed networking system. It is used to communicate with an Astron ClientAgent instance, which is the
+server-side of the Astron distributed networking system.
+"""
+
 from direct.directnotify import DirectNotifyGlobal
 from direct.distributed.ClientRepositoryBase import ClientRepositoryBase
 from direct.distributed.PyDatagram import PyDatagram
@@ -8,6 +15,7 @@ from direct.distributed.PyDatagramIterator import PyDatagramIterator
 from direct.distributed import DoInterestManager as interest_mgr
 
 from panda3d_astron import msgtypes
+from panda3d_toolbox import runtime
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------------- #
 # Panda3D ClientRepositoryBase implementation for implementing Astron clients
@@ -36,7 +44,8 @@ class AstronClientRepository(ClientRepositoryBase):
 
     def __init__(self, *args, **kwargs):
         ClientRepositoryBase.__init__(self, *args, **kwargs)
-        base.finalExitCallbacks.append(self.shutdown)
+        runtime.base.finalExitCallbacks.append(self.shutdown)
+
         self.message_handlers = {
             msgtypes.CLIENT_HELLO_RESP: self.handleHelloResp,
             msgtypes.CLIENT_EJECT: self.handleEject,
@@ -82,7 +91,7 @@ class AstronClientRepository(ClientRepositoryBase):
         Handles the CLIENT_HELLO_RESP packet sent by the Client Agent to the client when the client's CLIENT_HELLO is accepted.
         """
 
-        messenger.send("CLIENT_HELLO_RESP", [])
+        runtime.messenger.send("CLIENT_HELLO_RESP", [])
 
     def handleEject(self, di: PyDatagramIterator) -> None:
         """
@@ -91,7 +100,8 @@ class AstronClientRepository(ClientRepositoryBase):
 
         error_code = di.get_uint16()
         reason = di.get_string()
-        messenger.send("CLIENT_EJECT", [error_code, reason])
+
+        runtime.messenger.send("CLIENT_EJECT", [error_code, reason])
 
     def handleEnterObjectRequired(self, di: PyDatagramIterator) -> None:
         """
@@ -209,7 +219,8 @@ class AstronClientRepository(ClientRepositoryBase):
         dist_obj = self.doId2do.get(do_id)
         dist_obj.delete()
         self.deleteObject(do_id)
-        messenger.send("CLIENT_OBJECT_LEAVING", [do_id])
+
+        runtime.messenger.send("CLIENT_OBJECT_LEAVING", [do_id])
 
     def handleAddInterest(self, di):
         """
@@ -220,7 +231,7 @@ class AstronClientRepository(ClientRepositoryBase):
         parent_id = di.get_uint32()
         zone_id = di.get_uint32()
 
-        messenger.send("CLIENT_ADD_INTEREST", [context, interest_id, parent_id, zone_id])
+        runtime.messenger.send("CLIENT_ADD_INTEREST", [context, interest_id, parent_id, zone_id])
         self.addInternalInterestHandle(context, interest_id, parent_id, [zone_id])
 
     def handleAddInterestMultiple(self, di):
@@ -232,7 +243,7 @@ class AstronClientRepository(ClientRepositoryBase):
         parent_id = di.get_uint32()
         zone_ids = [di.get_uint32() for i in range(0, di.get_uint16())]
 
-        messenger.send("CLIENT_ADD_INTEREST_MULTIPLE", [context, interest_id, parent_id, zone_ids])
+        runtime.messenger.send("CLIENT_ADD_INTEREST_MULTIPLE", [context, interest_id, parent_id, zone_ids])
         self.addInternalInterestHandle(context, interest_id, parent_id, zone_ids)
 
     def addInternalInterestHandle(self, context, interest_id, parent_id, zone_ids) -> None:
@@ -257,7 +268,7 @@ class AstronClientRepository(ClientRepositoryBase):
 
         context = di.get_uint32()
         interest_id = di.get_uint16()
-        messenger.send("CLIENT_REMOVE_INTEREST", [context, interest_id])
+        runtime.messenger.send("CLIENT_REMOVE_INTEREST", [context, interest_id])
 
     def deleteObject(self, doId):
         """
@@ -384,7 +395,7 @@ class AstronClientRepository(ClientRepositoryBase):
         """
         """
 
-        messenger.send("LOST_CONNECTION")
+        runtime.messenger.send("LOST_CONNECTION")
 
     def disconnect(self):
         """

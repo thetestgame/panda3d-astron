@@ -125,6 +125,68 @@ class ClientAgentInterface(object):
 
     setClientStateEstablished = set_client_state_established
 
+    def set_client_id(self, clientChannel: int, clientId: int) -> None:
+        """
+        Changes the sender used to represent this client. This is useful if application/game components need to identify the avatar/account a given message came from: 
+        by changing the sender channel to include this information, the server can easily determine the account ID of a client that sends a field update.
+
+        Note: This also results in the CA opening the new channel, if it isn't open already.
+        """
+
+        dg = PyDatagram()
+        dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_SET_CLIENT_ID)
+        dg.add_uint64(clientId)
+
+        self.air.send(dg)
+
+    setClientId = set_client_id
+
+    def set_client_account_id(self, clientChannel: int, accountId: int) -> None:
+        """
+        Changes the client id associated with the client channel to reflect the account the client is authenticated with. This is useful if application/game components need to identify the account a given message came from.
+        by changing the sender channel to include this information, the server can easily determine the account ID of a client that sends a field update.
+
+        Note: This also results in the CA opening the new channel, if it isn't open already.
+        """
+
+        dg = PyDatagram()
+        dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_SET_ACCOUNT_ID)
+        dg.add_uint64(accountId << 32)
+
+        self.air.send(dg)
+
+    setAccountId = set_client_account_id
+
+    def set_client_avatar_id(self, clientChannel: int, avatarId: int) -> None:
+        """
+        Changes the client id associated with the client channel to reflect the avatar the client is authenticated with. This is useful if application/game components need to identify the avatar a given message came from.
+        by changing the sender channel to include this information, the server can easily determine the avatar ID of a client that sends a field update.
+
+        Note: This also results in the CA opening the new channel, if it isn't open already.
+        """
+
+        dg = PyDatagram()
+        dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_SET_AVATAR_ID)
+        dg.add_uint64(clientChannel << 32 | avatarId)
+
+        self.air.send(dg)
+
+    setAvatarId = set_client_avatar_id
+
+    def remove_client_avatar_id(self, clientChannel: int) -> None:
+        """
+        Changes the client id associated with the client channel to reflect the avatar the client is authenticated with. This is useful if application/game components need to identify the avatar a given message came from.
+        by changing the sender channel to include this information, the server can easily determine the account ID of a client that sends a field update.
+        """
+
+        dg = PyDatagram()
+        dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_SET_AVATAR_ID)
+        dg.add_uint64(clientChannel << 32)
+
+        self.air.send(dg)
+
+    removeAvatarId = remove_client_avatar_id
+
     def send_client_datagram(self, clientChannel: int, datagram: object) -> None:
         """
         Send a raw datagram down the pipe to the client. This is useful for sending app/game-specific messages to the client, debugging, etc.
@@ -452,3 +514,16 @@ class ClientAgentInterface(object):
             self.__callbacks[ctx](client_channel, interest_id)
         finally:
             del self.__callbacks[ctx]
+
+    def send_system_message(self, message: str, clientChannel: int = 10) -> None:
+        """
+        Sends a CLIENT_SYSTEM_MESSAGE to the given client channel.
+        """
+
+        dg = PyDatagram()
+        dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_SEND_SYSTEM_MESSAGE)
+        dg.add_string(message)
+
+        self.send_client_datagram(clientChannel, dg)
+
+    sendSystemMessage = send_system_message

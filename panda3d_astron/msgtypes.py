@@ -154,7 +154,6 @@ MsgName2Id = {
     "CLIENT_OBJECT_LOCATION": 140,
 
     # Message Director control messages
-    "CONTROL_CHANNEL": 1,
     "CONTROL_ADD_CHANNEL": 9000,
     "CONTROL_REMOVE_CHANNEL": 9001,
     "CONTROL_ADD_RANGE": 9002,

@@ -74,9 +74,9 @@ class AstronInternalRepository(ConnectionRepository):
         self.__contextCounter = 0
 
         self.database        = database.AstronDatabaseInterface(self)
-        self.netMessenger    = net_messenger.NetMessengerInterface(self)
-        self.stateServer     = state.StateServerInterface(self)
-        self.clientAgent     = clientagent.ClientAgentInterface(self)
+        self.net_messenger   = net_messenger.NetMessengerInterface(self)
+        self.state_server    = state.StateServerInterface(self)
+        self.client_agent    = clientagent.ClientAgentInterface(self)
         self.events          = events.EventLoggerInterface(self)
         self.interfacesReady = True
 
@@ -96,12 +96,12 @@ class AstronInternalRepository(ConnectionRepository):
 
             if hasattr(self.database, key):
                 getattr(self.database, key)
-            elif hasattr(self.netMessenger, key):
-                return getattr(self.netMessenger, key)
-            elif hasattr(self.stateServer, key):
-                return getattr(self.stateServer, key)
-            elif hasattr(self.clientAgent, key):
-                return getattr(self.clientAgent, key)
+            elif hasattr(self.net_messenger, key):
+                return getattr(self.net_messenger, key)
+            elif hasattr(self.state_server, key):
+                return getattr(self.state_server, key)
+            elif hasattr(self.client_agent, key):
+                return getattr(self.client_agent, key)
             elif hasattr(self.events, key):
                 return getattr(self.events, key)
         except:

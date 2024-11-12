@@ -56,7 +56,7 @@ def main() -> int:
 
     # Define some constants
     module_name = 'panda3d_astron'
-
+    
     # Run the setup
     setup(
         name=module_name,
@@ -69,10 +69,7 @@ def main() -> int:
         maintainer='Jordan Maxwell',
         url=get_package_url(module_name),
         packages=find_namespace_packages(),
-        install_requires=[
-            "panda3d",
-            "panda3d-toolbox"
-        ],
+        install_requires=get_requirements(),
         classifiers=[
             'Programming Language :: Python :: 3',
         ])

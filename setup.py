@@ -15,7 +15,14 @@ def get_version() -> str:
     minor = os.environ.get('MINOR', '0')
     patch = os.environ.get('PATCH', '0')
 
-    return f'{major}.{minor}.{patch}'
+    # Determine if this is a pre-release version
+    release_flag = os.environ.get('RELEASE', 'true').lower()
+    prerelease = not bool(release_flag)
+
+    if not prerelease:
+        return f'{major}.{minor}.{patch}'
+    else:
+        return f'{major}.{minor}.{patch}.dev'
 
 def get_readme(filename: str = 'README.md') -> str:
     """

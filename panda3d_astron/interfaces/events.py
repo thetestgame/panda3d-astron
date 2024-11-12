@@ -107,6 +107,14 @@ class EventLoggerInterface(object):
             else:
                 self.setEventLogHost(eventLogHost)
 
+    @property
+    def notify(self) -> object:
+        """
+        Retrieves the parent repositories notify object
+        """
+
+        return self.air.notify
+
     def setEventLogHost(self, host, port=7197):
         """
         Set the target host for Event Logger messaging. This should be pointed

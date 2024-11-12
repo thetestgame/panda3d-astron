@@ -15,7 +15,6 @@ from direct.task.TaskManagerGlobal import * # taskMgr
 from direct.distributed.ConnectionRepository import ConnectionRepository
 
 from panda3d import core as p3d
-from panda3d.direct import DCPacker
 from panda3d_astron import msgtypes
 from panda3d_astron.interfaces import clientagent, database
 from panda3d_astron.interfaces import events, state
@@ -69,9 +68,10 @@ class AstronInternalRepository(ConnectionRepository):
         maxChannels = self.config.GetInt('air-channel-allocation', 1000000)
         self.channelAllocator = p3d.UniqueIdAllocator(baseChannel, baseChannel + maxChannels - 1)
         self._registeredChannels = set()
-
         self.ourChannel = self.allocateChannel()
+
         self.__contextCounter = 0
+        self.__message_counter = 0
 
         self.database        = database.AstronDatabaseInterface(self)
         self.net_messenger   = net_messenger.NetMessengerInterface(self)
@@ -106,6 +106,24 @@ class AstronInternalRepository(ConnectionRepository):
                 return getattr(self.events, key)
         except:
             raise
+
+    def is_uberdog(self) -> bool:
+        """
+        Returns whether the repository is an UberDOG server or not
+        """
+
+        return self.dcSuffix == 'UD'
+    
+    isUberDOG = is_uberdog
+
+    def is_ai(self) -> bool:
+        """
+        Returns whether the repository is an AI server or not
+        """
+
+        return self.dcSuffix == 'AI'
+    
+    isAI = is_ai
 
     def get_context(self) -> int:
         """
@@ -251,6 +269,15 @@ class AstronInternalRepository(ConnectionRepository):
     
     getAvatarIdFromSender = get_avatar_id_from_sender
 
+    def register_net_messager_event(self, message: int) -> None:
+        """
+        Registers a new event with the NetMessenger. This is useful for
+        broadcasting messenger events across the entire internal cluster.
+        """
+
+        self.net_messenger.register(self.__message_counter, message)
+        self.__message_counter += 1
+
     def handle_datagram(self, di: object) -> None:
         """
         Handle a datagram received from the Message Director.
@@ -259,13 +286,13 @@ class AstronInternalRepository(ConnectionRepository):
         msg_type = self.getMsgType()
         if msgtypes.is_state_server_message(msg_type) or \
            msgtypes.is_database_state_server_message(msg_type):
-            self.stateServer.handle_datagram(msg_type, di)
+            self.state_server.handle_datagram(msg_type, di)
         elif msgtypes.is_database_server_message(msg_type):
             self.database.handle_datagram(msg_type, di)
         elif msgtypes.is_client_agent_message(msg_type):
-            self.clientAgent.handle_datagram(msg_type, di)
+            self.client_agent.handle_datagram(msg_type, di)
         elif msgtypes.is_net_messenger_message(msg_type):
-            self.netMessenger.handle_datagram(msg_type, di)
+            self.net_messenger.handle_datagram(msg_type, di)
         else:
             self.notify.warning('Received message with unknown MsgType=%d' % msg_type)
 
@@ -298,59 +325,6 @@ class AstronInternalRepository(ConnectionRepository):
     
     sendUpdateToChannel = send_update_to_channel
 
-    def sendActivate(self, doId, parentId, zoneId, dclass=None, fields=None):
-        """
-        Activate a DBSS object, given its doId, into the specified parentId/zoneId.
-        If both dclass and fields are specified, an ACTIVATE_WITH_DEFAULTS_OTHER
-        will be sent instead. In other words, the specified fields will be
-        auto-applied during the activation.
-        """
-
-        fieldPacker = DCPacker()
-        fieldCount = 0
-        if dclass and fields:
-            for k,v in fields.items():
-                field = dclass.getFieldByName(k)
-                if not field:
-                    self.notify.error('Activation request for %s object contains '
-                                      'invalid field named %s' % (dclass.getName(), k))
-
-                fieldPacker.rawPackUint16(field.getNumber())
-                fieldPacker.beginPack(field)
-                field.packArgs(fieldPacker, v)
-                fieldPacker.endPack()
-                fieldCount += 1
-
-            dg = PyDatagram()
-            dg.addServerHeader(doId, self.ourChannel, msgtypes.DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS)
-            dg.addUint32(doId)
-            dg.addUint32(0)
-            dg.addUint32(0)
-            self.send(dg)
-
-            # DEFAULTS_OTHER isn't implemented yet, so we chase it with a SET_FIELDS
-            dg = PyDatagram()
-            dg.addServerHeader(doId, self.ourChannel, msgtypes.STATESERVER_OBJECT_SET_FIELDS)
-            dg.addUint32(doId)
-            dg.addUint16(fieldCount)
-            dg.appendData(fieldPacker.getBytes())
-            self.send(dg)
-            
-            # Now slide it into the zone we expect to see it in (so it
-            # generates onto us with all of the fields in place)
-            dg = PyDatagram()
-            dg.addServerHeader(doId, self.ourChannel, msgtypes.STATESERVER_OBJECT_SET_LOCATION)
-            dg.addUint32(parentId)
-            dg.addUint32(zoneId)
-            self.send(dg)
-        else:
-            dg = PyDatagram()
-            dg.addServerHeader(doId, self.ourChannel, msgtypes.DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS)
-            dg.addUint32(doId)
-            dg.addUint32(parentId)
-            dg.addUint32(zoneId)
-            self.send(dg)
-
     def connect(self, host: str, port: int = 7199) -> None:
         """
         Connect to a Message Director. The airConnected message is sent upon
@@ -360,8 +334,8 @@ class AstronInternalRepository(ConnectionRepository):
         """
 
         url = p3d.URLSpec()
-        url.setServer(host)
-        url.setPort(port)
+        url.set_server(host)
+        url.set_port(port)
 
         self.notify.info('Now connecting to %s:%s...' % (host, port))
         ConnectionRepository.connect(self, [url],
@@ -376,13 +350,13 @@ class AstronInternalRepository(ConnectionRepository):
 
         # Listen to our channel...
         self.notify.info('Connected successfully.')
-        self.registerForChannel(self.ourChannel)
+        self.register_for_channel(self.ourChannel)
 
         # If we're configured with a State Server, register a post-remove to
         # clean up whatever objects we own on this server should we unexpectedly
         # fall over and die.
         if self.serverId:
-            self.stateServer.register_delete_ai_objects_post_remove(self.serverId)
+            self.state_server.register_delete_ai_objects_post_remove(self.serverId)
 
         runtime.messenger.send('airConnected')
         self.handle_connected()

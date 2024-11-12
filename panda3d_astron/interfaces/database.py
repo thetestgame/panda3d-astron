@@ -18,8 +18,6 @@ class AstronDatabaseInterface:
     dbInterface attribute.
     """
 
-    notify = DirectNotifyGlobal.directNotify.newCategory("AstronDatabaseInterface")
-
     def __init__(self, air):
         """
         Initialize the Astron database interface.
@@ -29,6 +27,14 @@ class AstronDatabaseInterface:
 
         self._callbacks = {}
         self._dclasses = {}
+
+    @property
+    def notify(self) -> object:
+        """
+        Retrieves the parent repositories notify object
+        """
+
+        return self.air.notify
 
     def createObject(self, databaseId, dclass, fields={}, callback=None):
         """
@@ -308,20 +314,21 @@ class AstronDatabaseInterface:
         finally:
             del self._callbacks[ctx]
 
-    def handle_datagram(self, msgType: int, di: object) -> None:
+    def handle_datagram(self, msg_type: int, di: object) -> None:
         """
         Handle a datagram from the database server.
         """
 
-        if msgType == DBSERVER_CREATE_OBJECT_RESP:
+        if msg_type == DBSERVER_CREATE_OBJECT_RESP:
             self.handle_create_object_resp(di)
-        elif msgType in (DBSERVER_OBJECT_GET_ALL_RESP,
+        elif msg_type in (DBSERVER_OBJECT_GET_ALL_RESP,
                          DBSERVER_OBJECT_GET_FIELDS_RESP,
                          DBSERVER_OBJECT_GET_FIELD_RESP):
-            self.handle_query_object_resp(msgType, di)
-        elif msgType == DBSERVER_OBJECT_SET_FIELD_IF_EQUALS_RESP:
+            self.handle_query_object_resp(msg_type, di)
+        elif msg_type == DBSERVER_OBJECT_SET_FIELD_IF_EQUALS_RESP:
             self.handle_update_object_resp(di, False)
-        elif msgType == DBSERVER_OBJECT_SET_FIELDS_IF_EQUALS_RESP:
+        elif msg_type == DBSERVER_OBJECT_SET_FIELDS_IF_EQUALS_RESP:
             self.handle_update_object_resp(di, True)
         else:
-            self.notify.warning('Received unknown database message: %d' % msgType)
+            message_name = MsgId2Names.get(msg_type, str(msg_type))
+            self.notify.warning('Received unknown database message: %s' % message_name)

@@ -17,9 +17,6 @@ from direct.distributed import DoInterestManager as interest_mgr
 from panda3d_astron import msgtypes
 from panda3d_toolbox import runtime
 
-# --------------------------------------------------------------------------------------------------------------------------------------------------------------------- #
-# Panda3D ClientRepositoryBase implementation for implementing Astron clients
-
 class AstronClientRepository(ClientRepositoryBase):
     """
     The Astron implementation of a clients repository for

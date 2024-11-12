@@ -14,8 +14,6 @@ class StateServerInterface(object):
     Network interface for working with the state server
     """
 
-    notify = DirectNotifyGlobal.directNotify.newCategory("state-server")
-
     def __init__(self, air: object):
         """
         Initializes the state server interface
@@ -24,20 +22,28 @@ class StateServerInterface(object):
         self.air = air
         self.__callbacks = {}
 
+    @property
+    def notify(self) -> object:
+        """
+        Retrieves the parent repositories notify object
+        """
+
+        return self.air.notify
+
     def handle_datagram(self, msg_type: int, di: object) -> None:
         """
         Handles state server datagrams
         """
 
         if msg_type in (msgtypes.STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED,
-                       msgtypes.STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED_OTHER,
-                       msgtypes.STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED,
-                       msgtypes.STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED_OTHER):
+                        msgtypes.STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED_OTHER,
+                        msgtypes.STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED,
+                        msgtypes.STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED_OTHER):
             other = msg_type == msgtypes.STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED_OTHER or \
                     msg_type == msgtypes.STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED_OTHER
             self.handle_object_entry(di, other)
         elif msg_type in (msgtypes.STATESERVER_OBJECT_CHANGING_AI,
-                         msgtypes.STATESERVER_OBJECT_DELETE_RAM):
+                          msgtypes.STATESERVER_OBJECT_DELETE_RAM):
             self.handle_object_exit(di)
         elif msg_type == msgtypes.STATESERVER_OBJECT_GET_FIELD_RESP:
             self.handle_get_field_resp(di)
@@ -52,9 +58,10 @@ class StateServerInterface(object):
         elif msg_type == msgtypes.DBSS_OBJECT_GET_ACTIVATED_RESP:
             self.handle_get_activated_resp(di)
         else:
-            self.notify.warning('Received unknown state server message: %d' % msg_type)
+            message_name = msgtypes.MsgId2Names.get(msg_type, str(msg_type))
+            self.notify.warning('Received unknown state server message: %s' % message_name)
 
-    def create_object_with_required(self, doId: int, parentId: int, zoneId: int, dclass: direct.DClass, fields: dict) -> None:
+    def create_object_with_required(self, doId: int, parentId: int, zoneId: int, dclass: direct.DCClass, fields: dict) -> None:
         """
         Create an object on the State Server, specifying its initial location as (parent_id, zone_id), its class, 
         and initial field data. The object then broadcasts an ENTER_LOCATION message to its location channel, 
@@ -64,7 +71,7 @@ class StateServerInterface(object):
         """
 
         dg = PyDatagram()
-        dg.addServerHeader(doId, self.air.ourChannel, msgtypes.STATESERVER_OBJECT_CREATE_WITH_REQUIRED)
+        dg.addServerHeader(doId, self.air.ourChannel, msgtypes.STATESERVER_CREATE_OBJECT_WITH_REQUIRED)
 
         dg.add_uint32(doId)
         dg.add_uint32(parentId)
@@ -72,17 +79,17 @@ class StateServerInterface(object):
         dg.add_uint16(dclass.get_number())
 
         packer = direct.DCPacker()
-        for field in dclass.getFields():
-            if field.isRequired() and field.getName() in fields:
-                packer.beginPack(field)
-                field.packArgs(packer, fields[field.getName()])
-                packer.endPack()
+        for i in range(dclass.get_num_inherited_fields()):
+            field = dclass.get_inherited_field(i)
+            if field.is_required() and field.get_name() in fields:
+                packer.begin_pack(field)
+                field.pack_args(packer, fields[field.get_name()])
+                packer.end_pack()
 
-        dg.appendData(packer.getDatagram())
+        dg.append_data(packer.get_bytes())
+        self.air.send(dg)   
 
-        self.air.send(dg)
-
-    def create_object_with_required_other(self, doId: int, parentId: int, zoneId: int, dclass: direct.DClass, fields: dict) -> None:
+    def create_object_with_required_other(self, doId: int, parentId: int, zoneId: int, dclass: direct.DCClass, fields: dict) -> None:
         """
         Create an object on the State Server, specifying its initial location as (parent_id, zone_id), its class, 
         and initial field data. The object then broadcasts an ENTER_LOCATION message to its location channel, 
@@ -92,7 +99,7 @@ class StateServerInterface(object):
         """  
 
         dg = PyDatagram()
-        dg.addServerHeader(doId, self.air.ourChannel, msgtypes.STATESERVER_OBJECT_CREATE_WITH_REQUIRED_OTHER)
+        dg.addServerHeader(doId, self.air.ourChannel, msgtypes.STATESERVER_CREATE_OBJECT_WITH_REQUIRED_OTHER)
 
         dg.add_uint32(doId)
         dg.add_uint32(parentId)
@@ -100,14 +107,14 @@ class StateServerInterface(object):
         dg.add_uint16(dclass.get_number())
 
         packer = direct.DCPacker()
-        for field in dclass.getFields():
-            if field.isRequired() and field.getName() in fields:
-                packer.beginPack(field)
-                field.packArgs(packer, fields[field.getName()])
-                packer.endPack()
+        for i in range(dclass.get_num_inherited_fields()):
+            field = dclass.get_inherited_field(i)
+            if field.is_required() and field.get_name() in fields:
+                packer.begin_pack(field)
+                field.pack_args(packer, fields[field.get_name()])
+                packer.end_pack()
 
-        dg.appendData(packer.getDatagram())
-
+        dg.append_data(packer.get_bytes())
         self.air.send(dg)     
 
     def delete_ai_objects(self, channel: int) -> None:
@@ -366,8 +373,14 @@ class StateServerInterface(object):
         the specified parentId/zoneId.
         """
 
+        # If we've been passed a DistributedObject, extract the doId. 
+        # This allows us to pass either a doId or a DistributedObject.
+        doId = do
+        if hasattr(do, 'doId'):
+            doId = do.doId
+
         dg = PyDatagram()
-        dg.addServerHeader(do.doId, self.air.ourChannel, msgtypes.STATESERVER_OBJECT_SET_LOCATION)
+        dg.addServerHeader(doId, self.air.ourChannel, msgtypes.STATESERVER_OBJECT_SET_LOCATION)
         dg.add_uint32(parentId)
         dg.add_uint32(zoneId)
 
@@ -413,15 +426,14 @@ class StateServerInterface(object):
             return # We already know about this object; ignore the entry.
 
         dclass = self.air.dclassesByNumber[classId]
-
-        do = dclass.getClassDef()(self)
+        do = dclass.getClassDef()(self.air)
         do.dclass = dclass
         do.doId = doId
 
         # The DO came in off the server, so we do not unregister the channel when
         # it dies:
         do.doNotDeallocateChannel = True
-        self.addDOToTables(do, location=(parentId, zoneId))
+        self.air.addDOToTables(do, location=(parentId, zoneId))
 
         # Now for generation:
         do.generate()
@@ -442,7 +454,7 @@ class StateServerInterface(object):
             return
 
         do = self.air.doId2do[doId]
-        self.removeDOFromTables(do)
+        self.air.removeDOFromTables(do)
         do.delete()
         do.sendDeleteEvent()
 
@@ -590,7 +602,109 @@ class StateServerInterface(object):
         """
 
         do.doId = doId
-        self.addDOToTables(do, location=(parentId, zoneId))
-        do.sendGenerateWithRequired(self, parentId, zoneId, optionalFields)
+        self.air.addDOToTables(do, location=(parentId, zoneId))
+        do.sendGenerateWithRequired(self.air, parentId, zoneId, optionalFields)
 
     generateWithRequiredAndId = generate_with_required_and_id
+
+    def get_zone_objects(self, parentId: int, zoneId: int, callback: object = None) -> None:
+        """
+        Get all child objects in one or more zones from a single object. The parent will reply immediately with a GET_{ZONE,ZONES,CHILD}_COUNT_RESP message. 
+        Each object will reply with a STATESERVER_OBJECT_ENTER_LOCATION message.
+
+        Note: If a shard crashes the number of objects may not be correct, as such a client (for ADD_INTEREST) or AI/Uberdog (in the general case) should stop waiting after a reasonable timeout. 
+        In some cases, it may be acceptable or even preferred to not wait for all responses to come in and just act on objects as they come in.
+        """
+
+        ctx = self.air.get_context()
+        if callback != None:
+            self.__callbacks[ctx] = callback
+
+        dg = PyDatagram()
+        dg.addServerHeader(parentId, self.air.ourChannel, msgtypes.STATESERVER_OBJECT_GET_ZONE_OBJECTS)
+        dg.add_uint32(ctx)
+        dg.add_uint32(parentId)
+        dg.add_uint32(zoneId)
+
+        self.air.send(dg)
+
+    getZoneObjects = get_zone_objects
+
+    def get_zones_objects(self, parentId: int, zones: list, callback: object = None) -> None:
+        """
+        Get all child objects in one or more zones from a single object. The parent will reply immediately with a GET_{ZONE,ZONES,CHILD}_COUNT_RESP message. 
+        Each object will reply with a STATESERVER_OBJECT_ENTER_LOCATION message.
+
+        Note: If a shard crashes the number of objects may not be correct, as such a client (for ADD_INTEREST) or AI/Uberdog (in the general case) should stop waiting after a reasonable timeout. 
+        In some cases, it may be acceptable or even preferred to not wait for all responses to come in and just act on objects as they come in.
+        """
+
+        ctx = self.air.get_context()
+        if callback != None:
+            self.__callbacks[ctx] = callback
+
+        dg = PyDatagram()
+        dg.addServerHeader(parentId, self.air.ourChannel, msgtypes.STATESERVER_OBJECT_GET_ZONES_OBJECTS)
+        dg.add_uint32(ctx)
+        dg.add_uint32(parentId)
+
+        dg.add_uint16(len(zones))
+        for zone in zones:
+            dg.add_uint32(zone)
+
+        self.air.send(dg)
+
+    def send_activate(self, doId, parentId, zoneId, dclass=None, fields=None) -> None:
+        """
+        Activate a DBSS object, given its doId, into the specified parentId/zoneId.
+        If both dclass and fields are specified, an ACTIVATE_WITH_DEFAULTS_OTHER
+        will be sent instead. In other words, the specified fields will be
+        auto-applied during the activation.
+        """
+
+        fieldPacker = direct.DCPacker()
+        fieldCount = 0
+        if dclass and fields:
+            for k,v in fields.items():
+                field = dclass.getFieldByName(k)
+                if not field:
+                    self.notify.error('Activation request for %s object contains '
+                                      'invalid field named %s' % (dclass.getName(), k))
+
+                fieldPacker.rawPackUint16(field.getNumber())
+                fieldPacker.beginPack(field)
+                field.packArgs(fieldPacker, v)
+                fieldPacker.endPack()
+                fieldCount += 1
+
+            dg = PyDatagram()
+            dg.addServerHeader(doId, self.ourChannel, msgtypes.DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS)
+            dg.addUint32(doId)
+            dg.addUint32(0)
+            dg.addUint32(0)
+            self.send(dg)
+
+            # DEFAULTS_OTHER isn't implemented yet, so we chase it with a SET_FIELDS
+            dg = PyDatagram()
+            dg.addServerHeader(doId, self.ourChannel, msgtypes.STATESERVER_OBJECT_SET_FIELDS)
+            dg.addUint32(doId)
+            dg.addUint16(fieldCount)
+            dg.appendData(fieldPacker.getBytes())
+            self.send(dg)
+            
+            # Now slide it into the zone we expect to see it in (so it
+            # generates onto us with all of the fields in place)
+            dg = PyDatagram()
+            dg.addServerHeader(doId, self.ourChannel, msgtypes.STATESERVER_OBJECT_SET_LOCATION)
+            dg.addUint32(parentId)
+            dg.addUint32(zoneId)
+            self.send(dg)
+        else:
+            dg = PyDatagram()
+            dg.addServerHeader(doId, self.ourChannel, msgtypes.DBSS_OBJECT_ACTIVATE_WITH_DEFAULTS)
+            dg.addUint32(doId)
+            dg.addUint32(parentId)
+            dg.addUint32(zoneId)
+            self.send(dg)
+
+    sendActivate = send_activate

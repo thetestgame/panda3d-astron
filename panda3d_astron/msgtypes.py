@@ -46,6 +46,7 @@ CONTROL_CLEAR_POST_REMOVES                              = 9011
 # State Server control messages
 STATESERVER_CREATE_OBJECT_WITH_REQUIRED                 = 2000
 STATESERVER_CREATE_OBJECT_WITH_REQUIRED_OTHER           = 2001
+
 STATESERVER_DELETE_AI_OBJECTS                           = 2009
 STATESERVER_OBJECT_GET_FIELD                            = 2010
 STATESERVER_OBJECT_GET_FIELD_RESP                       = 2011
@@ -53,29 +54,34 @@ STATESERVER_OBJECT_GET_FIELDS                           = 2012
 STATESERVER_OBJECT_GET_FIELDS_RESP                      = 2013
 STATESERVER_OBJECT_GET_ALL                              = 2014
 STATESERVER_OBJECT_GET_ALL_RESP                         = 2015
+
 STATESERVER_OBJECT_SET_FIELD                            = 2020
 STATESERVER_OBJECT_SET_FIELDS                           = 2021
 STATESERVER_OBJECT_DELETE_FIELD_RAM                     = 2030
 STATESERVER_OBJECT_DELETE_FIELDS_RAM                    = 2031
 STATESERVER_OBJECT_DELETE_RAM                           = 2032
+
 STATESERVER_OBJECT_SET_LOCATION                         = 2040
 STATESERVER_OBJECT_CHANGING_LOCATION                    = 2041
 STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED         = 2042
 STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED_OTHER   = 2043
 STATESERVER_OBJECT_GET_LOCATION                         = 2044
 STATESERVER_OBJECT_GET_LOCATION_RESP                    = 2045
+
 STATESERVER_OBJECT_SET_AI                               = 2050
 STATESERVER_OBJECT_CHANGING_AI                          = 2051
 STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED               = 2052
 STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED_OTHER         = 2053
 STATESERVER_OBJECT_GET_AI                               = 2054
 STATESERVER_OBJECT_GET_AI_RESP                          = 2055
+
 STATESERVER_OBJECT_SET_OWNER                            = 2060
 STATESERVER_OBJECT_CHANGING_OWNER                       = 2061
 STATESERVER_OBJECT_ENTER_OWNER_WITH_REQUIRED            = 2062
 STATESERVER_OBJECT_ENTER_OWNER_WITH_REQUIRED_OTHER      = 2063
 STATESERVER_OBJECT_GET_OWNER                            = 2064
 STATESERVER_OBJECT_GET_OWNER_RESP                       = 2065
+
 STATESERVER_OBJECT_GET_ZONE_OBJECTS                     = 2100
 STATESERVER_OBJECT_GET_ZONES_OBJECTS                    = 2102
 STATESERVER_OBJECT_GET_CHILDREN                         = 2104
@@ -127,11 +133,15 @@ CLIENTAGENT_EJECT                                       = 1004
 CLIENTAGENT_DROP                                        = 1005
 CLIENTAGENT_GET_NETWORK_ADDRESS                         = 1006
 CLIENTAGENT_GET_NETWORK_ADDRESS_RESP                    = 1007
+
 CLIENTAGENT_DECLARE_OBJECT                              = 1010
 CLIENTAGENT_UNDECLARE_OBJECT                            = 1011
 CLIENTAGENT_ADD_SESSION_OBJECT                          = 1012
 CLIENTAGENT_REMOVE_SESSION_OBJECT                       = 1013
 CLIENTAGENT_SET_FIELDS_SENDABLE                         = 1014
+CLIENTAGENT_GET_TLVS                                    = 1015
+CLIENTAGENT_GET_TLVS_RESP                               = 1016
+
 CLIENTAGENT_OPEN_CHANNEL                                = 1100
 CLIENTAGENT_CLOSE_CHANNEL                               = 1101
 CLIENTAGENT_ADD_POST_REMOVE                             = 1110

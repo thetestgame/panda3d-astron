@@ -64,8 +64,6 @@ class ClientAgentInterface(object):
     Network interface for the client agent.
     """
 
-    notify = DirectNotifyGlobal.directNotify.newCategory("client-agent")
-
     def __init__(self, air: object):
         """
         Initialize the client agent interface.
@@ -74,6 +72,14 @@ class ClientAgentInterface(object):
         self.air = air
         self.__callbacks = {}
 
+    @property
+    def notify(self) -> object:
+        """
+        Retrieves the parent repositories notify object
+        """
+
+        return self.air.notify
+
     def handle_datagram(self, msg_type: int, di: object) -> None:
         """
         Handles client agent datagrams
@@ -81,12 +87,13 @@ class ClientAgentInterface(object):
 
         if msg_type == msgtypes.CLIENTAGENT_GET_NETWORK_ADDRESS_RESP:
             self.handle_get_network_address_resp(di)
-        elif msg_type == msgtypes.CLIENTAGENT_GET_CLIENTTLVS_RESP:
+        elif msg_type == msgtypes.CLIENTAGENT_GET_TLVS_RESP:
             self.handle_get_tlvs_response(di)
         elif msg_type == msgtypes.CLIENTAGENT_DONE_INTEREST_RESP:
             self.handle_client_agent_interest_done_resp(di)
         else:
-            self.notify.warning(f"Received unknown message type {msg_type} from client agent")
+            message_name = msgtypes.MsgId2Names.get(msg_type, str(msg_type))
+            self.notify.warning('Received unknown client agent message: %s' % message_name)
 
     def set_client_state(self, clientChannel: int, state: int) -> None:
         """
@@ -150,7 +157,7 @@ class ClientAgentInterface(object):
         """
 
         dg = PyDatagram()
-        dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_SET_ACCOUNT_ID)
+        dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_SET_CLIENT_ID)
         dg.add_uint64(accountId << 32)
 
         self.air.send(dg)
@@ -166,7 +173,7 @@ class ClientAgentInterface(object):
         """
 
         dg = PyDatagram()
-        dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_SET_AVATAR_ID)
+        dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_SET_CLIENT_ID)
         dg.add_uint64(clientChannel << 32 | avatarId)
 
         self.air.send(dg)
@@ -180,14 +187,14 @@ class ClientAgentInterface(object):
         """
 
         dg = PyDatagram()
-        dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_SET_AVATAR_ID)
+        dg.addServerHeader(clientChannel, self.air.ourChannel, msgtypes.CLIENTAGENT_SET_CLIENT_ID)
         dg.add_uint64(clientChannel << 32)
 
         self.air.send(dg)
 
     removeAvatarId = remove_client_avatar_id
 
-    def send_client_datagram(self, clientChannel: int, datagram: object) -> None:
+    def send_client_datagram(self, clientChannel: int, datagram: PyDatagram) -> None:
         """
         Send a raw datagram down the pipe to the client. This is useful for sending app/game-specific messages to the client, debugging, etc.
         """

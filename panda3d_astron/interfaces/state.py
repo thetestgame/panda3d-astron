@@ -42,6 +42,9 @@ class StateServerInterface(object):
             other = msg_type == msgtypes.STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED_OTHER or \
                     msg_type == msgtypes.STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED_OTHER
             self.handle_object_entry(di, other)
+        elif msg_type == msgtypes.STATESERVER_OBJECT_ENTER_INTEREST_WITH_REQUIRED:
+            ctx = di.get_uint32()
+            self.handle_object_entry(di, False, ctx)
         elif msg_type in (msgtypes.STATESERVER_OBJECT_CHANGING_AI,
                           msgtypes.STATESERVER_OBJECT_DELETE_RAM):
             self.handle_object_exit(di)
@@ -407,16 +410,27 @@ class StateServerInterface(object):
 
         do.setLocation(parentId, zoneId)
 
-    def handle_object_entry(self, di: object, other: bool) -> None:
+    def handle_object_entry(self, di: object, other: bool, ctx: object = None) -> None:
         """
-        Handles STATE_SERVER_OBJECT_ENTER_AI_WITH_REQUIRED and
-        STATE_SERVER_OBJECT_ENTER_AI_WITH_REQUIRED_OTHER messages
+        Handles STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED, STATESERVER_OBJECT_ENTER_AI_WITH_REQUIRED_OTHER,
+        STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED, and STATESERVER_OBJECT_ENTER_LOCATION_WITH_REQUIRED_OTHER messages
+
+        If ctx is provided, the callback will be called with the object information.
         """
 
         doId        = di.get_uint32()
         parentId    = di.get_uint32()
         zoneId      = di.get_uint32()
         classId     = di.get_uint16()
+
+        # Check if we have been provided a callback context. If a context
+        # was provided we will call the callback with the object information.
+        if ctx is not None:
+            if ctx in self.__callbacks:
+                try:
+                    self.__callbacks[ctx](doId, parentId, zoneId, classId)
+                finally:
+                    del self.__callbacks[ctx]
 
         if classId not in self.air.dclassesByNumber:
             self.notify.warning('Received entry for unknown dclass=%d! (Object %d)' % (classId, doId))
@@ -430,8 +444,7 @@ class StateServerInterface(object):
         do.dclass = dclass
         do.doId = doId
 
-        # The DO came in off the server, so we do not unregister the channel when
-        # it dies:
+        # The DO came in off the server, so we do not unregister the channel when it dies:
         do.doNotDeallocateChannel = True
         self.air.addDOToTables(do, location=(parentId, zoneId))
 

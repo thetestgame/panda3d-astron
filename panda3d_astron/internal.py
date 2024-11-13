@@ -7,6 +7,8 @@ Astron network. Rather, it just connects directly to any Message Director. Hence
 it is an "internal" repository.
 """
 
+import os
+
 from direct.directnotify import DirectNotifyGlobal
 from direct.distributed.PyDatagram import PyDatagram
 from direct.distributed.MsgTypes import *
@@ -19,7 +21,7 @@ from panda3d_astron import msgtypes
 from panda3d_astron.interfaces import clientagent, database
 from panda3d_astron.interfaces import events, state
 from panda3d_astron.interfaces import messenger as net_messenger
-from panda3d_toolbox import runtime
+from panda3d_toolbox import runtime, utils
 
 class AstronInternalRepository(ConnectionRepository):
     """
@@ -36,15 +38,21 @@ class AstronInternalRepository(ConnectionRepository):
 
     notify = DirectNotifyGlobal.directNotify.newCategory("repository")
 
-    def __init__(self, baseChannel, serverId=None, dcFileNames = None, 
+    def __init__(self, baseChannel, maxChannels = 1000000, serverId = None, dcFileNames = None, 
                  dcSuffix = 'AI', connectMethod = None, threadedNet = None):
         """
         Initializes the Astron internal repository.
         """
 
+        # If no connection method was define assumed we should use
+        # the native connection method. This is the most performant 
+        # option for connecting to the Message Director.
         if connectMethod is None:
             connectMethod = self.CM_NATIVE
 
+        # Iniitlaize our base connection repository
+        # instance with the provided connection method and
+        # threading options.
         self.interfacesReady = False
         ConnectionRepository.__init__(self, 
             connectMethod = connectMethod, 
@@ -64,15 +72,24 @@ class AstronInternalRepository(ConnectionRepository):
         self.serverId = self.config.GetInt('air-stateserver', 0) or None
         if serverId is not None:
             self.serverId = serverId
+        self.notify.info('Using State Server %d for object creation' % self.serverId)
 
-        maxChannels = self.config.GetInt('air-channel-allocation', 1000000)
-        self.channelAllocator = p3d.UniqueIdAllocator(baseChannel, baseChannel + maxChannels - 1)
+        # Setup our channel allocator and register our own channel for communicating
+        # our selves to the larger Astron cluster. 
+        self.minChannel = baseChannel
+        self.maxChannel = self.config.GetInt('air-channel-allocation', maxChannels)
+        self.notify.info(f"Dynamic channel range [{self.minChannel}, {self.maxChannel}]. totaling {self.maxChannel - self.minChannel +1} slots.")
+        assert self.maxChannel >= self.minChannel
+        self.channelAllocator = p3d.UniqueIdAllocator(baseChannel, baseChannel + self.maxChannels - 1)
+
         self._registeredChannels = set()
         self.ourChannel = self.allocateChannel()
 
-        self.__contextCounter = 0
+        self.__context_counter = 0
         self.__message_counter = 0
 
+        # Initialize our interface for communicating with Astron
+        # server components.
         self.database        = database.AstronDatabaseInterface(self)
         self.net_messenger   = net_messenger.NetMessengerInterface(self)
         self.state_server    = state.StateServerInterface(self)
@@ -80,20 +97,38 @@ class AstronInternalRepository(ConnectionRepository):
         self.events          = events.EventLoggerInterface(self)
         self.interfacesReady = True
 
+        # Load the DC files if they were provided.
         self.readDCFile(dcFileNames)
+
+    @property
+    def our_channel(self) -> int:
+        """
+        Gets the channel this AIR is operating on.
+
+        Serves as a legacy bridge to the original ourChannel value
+        """
+
+        return self.ourChannel
 
     def __getattr__(self, key: str) -> object:
         """
         Custom getattr method to allow for easy access to the interfaces. This also 
         serves as a legacy bridge from the old way of commanding the AIR to the new way.
         """
-    
+
+        # Attempt to retrieve the key on our own object first. If they key
+        # does not exist attempt to retrieve it from one of our interfaces.
         try:
             return object.__getattribute__(self, key)
         except AttributeError:  
+            # TODO: Should this be a flag we have to manange or should we 
+            # assume if we've gotten here and the key matches any of our interface attribute names
+            # that the interfaces are not ready and we should raise an exception?
             if not self.interfacesReady:
                 raise
 
+            # Check if the key is a valid attribute of any of our interfaces.
+            # If it is then return the attribute.
             if hasattr(self.database, key):
                 getattr(self.database, key)
             elif hasattr(self.net_messenger, key):
@@ -105,14 +140,30 @@ class AstronInternalRepository(ConnectionRepository):
             elif hasattr(self.events, key):
                 return getattr(self.events, key)
         except:
+            # An unexpected error occurred while attempting to retrieve the attribute.
+            # We should simply raise the error for normal handling.
             raise
+
+    def does_dc_suffix_match(self, suffix: str) -> bool:
+        """
+        Returns whether the repository's DC suffix matches the provided suffix.
+
+        This function will ignore case when comparing the suffixes.
+        """
+
+        lower_suffix = self.dcSuffix.lower()
+        lower_match_suffix = suffix.lower()
+
+        return lower_suffix == lower_match_suffix
+    
+    doesDCSuffixMatch = does_dc_suffix_match
 
     def is_uberdog(self) -> bool:
         """
         Returns whether the repository is an UberDOG server or not
         """
 
-        return self.dcSuffix == 'UD'
+        return self.does_dc_suffix_match('UD')
     
     isUberDOG = is_uberdog
 
@@ -121,17 +172,27 @@ class AstronInternalRepository(ConnectionRepository):
         Returns whether the repository is an AI server or not
         """
 
-        return self.dcSuffix == 'AI'
+        return self.does_dc_suffix_match('AI')
     
     isAI = is_ai
+
+    def get_game_do_id(self) -> int:
+        """
+        Gets the distributed id of the root game object as defined by 
+        the legacy GameDoId variable.
+        """
+
+        return self.getGameDoId()
 
     def get_context(self) -> int:
         """
         Get a new context ID for a callback.
         """
 
-        self.__contextCounter = (self.__contextCounter + 1) & 0xFFFFFFFF
-        return self.__contextCounter
+        self.__context_counter = (self.__context_counter + 1) & 0xFFFFFFFF
+        return self.__context_counter
+    
+    getContext = get_context
     
     def allocate_channel(self) -> None:
         """
@@ -152,6 +213,16 @@ class AstronInternalRepository(ConnectionRepository):
         self.channelAllocator.free(channel)
 
     deallocateChannel = deallocate_channel
+
+    def get_location_channel(self, parentId: int, zoneId: int) -> int:
+        """
+        Get a location channel for the specified parent and zone. This is used
+        to receive updates from the State Server about objects in a specific zone.
+        """
+
+        return (parentId << 32) | zoneId
+    
+    getLocationChannel = get_location_channel
 
     def register_for_channel(self, channel: int) -> None:
         """
@@ -176,7 +247,7 @@ class AstronInternalRepository(ConnectionRepository):
         If the channel is already open by this AIR, nothing will happen.
         """
 
-        channel = (parentId << 32) | zoneId
+        channel = self.get_location_channel(parentId, zoneId)
         self.registerForChannel(channel)
 
     registerForLocationChannel = register_for_location_channel
@@ -197,6 +268,43 @@ class AstronInternalRepository(ConnectionRepository):
         self.send(dg)
 
     unregisterForChannel = unregister_for_channel
+
+    def unregister_for_location_channel(self, parentId: int, zoneId: int) -> None:
+        """
+        Unregister a location channel subscription on the Message Director. The Message
+        Director will cease to relay messages to this AIR sent on the location channel.
+        """       
+         
+        channel = self.get_location_channel(parentId, zoneId)
+        self.unregisterForChannel(channel)
+
+    unregisterForLocationChannel = unregister_for_location_channel
+
+    def subscribe_to_zone(self, zoneId: int, parentId: int = None, callback: object = None) -> None:
+        """
+        Subscribes the server to a network zone and requests all objects in the zone. This is useful
+        for UberDOG servers to allow them to receive UD objects in a specific zone. The channel subscription
+        is followed up with a get_zone_objects request to ensure we know about all objects already in the zone.
+        """
+
+        # If our zone id came from an enum then retrieve the value of it.
+        if hasattr(zoneId, 'value'):
+            zoneId = zoneId.value
+
+        # if we were not given a parent then assume we want to subscribe
+        # to the root global object's children.
+        if parentId is None:
+            parentId = self.getGameDoId()
+            
+        self.notify.info(f'Subscribing to network zone ({zoneId}) under parent {parentId}')
+        self.register_for_location_channel(self.getGameDoId(), zoneId)
+
+        self.state_server.get_zone_objects(
+            parentId=parentId,
+            zoneId=zoneId,
+            callback=callback)
+        
+    subscribeToZone = subscribe_to_zone
 
     def add_post_remove(self, dg: object) -> None:
         """
@@ -386,3 +494,50 @@ class AstronInternalRepository(ConnectionRepository):
         self.notify.error('Lost connection to gameserver!')
 
     lostConnection = lost_connection # Legacy carry-over
+
+    def generate_global_object_if_configured(self, object_id: int, object_name: str, config_name: str = '', guarantee: bool = False) -> object:
+        """
+        Generates a distributed object global if it was requested at startup. This is used for
+        generating certain global objects across different instances of the UberDOG server.
+
+        When this method is called by an AI repository instance it is guaranteed to generate the object
+        to ensure the AI can properly communicate with whichever UberDOG server the object is on.
+
+        An optional guarantee flag can be set to force the object to be generated regardless of the configuration.
+        """
+
+        # Verify the requested object exists in our dclass schema
+        dclass_name = f'{object_name}{self.dcSuffix}'
+        if not self.dclassesByName.get(dclass_name):
+            self.notify.warning(f'Could not find dclass for global object {object_name}')
+            return
+
+        # If our object id came from an int enum then retrieve
+        # the value of it.
+        if hasattr(object_id, 'value'):
+            object_id = object_id.value
+
+        # If the config name was not supplied then generate it from the object name.
+        # It should match the name of the object turned snake case and upper case. E.g.
+        # DistributedAccountManager -> DISTRIBUTED_ACCOUNT_MANAGER
+        if config_name == '':
+            config_name = utils.get_snake_case(object_name)
+            config_name = config_name.upper()
+
+        # Check if the object's environment variable flag was set on startup,
+        # we are running in development mode, or this repository represents an AI server. If any
+        # of these conditions are met then we should generate the object.
+        should_generate = int(os.environ.get(config_name, '0')) or guarantee or self.is_ai()
+        if should_generate or runtime.__dev__:
+            self.notify.info(f'Generating global object {object_name} with id {object_id}')
+            return self.generate_global_object(object_id, object_name)
+
+        return None
+    
+    # Exists as a legacy bridge to the original Panda3D generateGlobalObject method
+    def generate_global_object(self, doId: int, dcname: str, values: list = None) -> object:
+        """
+        Generates a global object with the specified doId and dclass name.
+        """
+
+        return self.generateGlobalObject(doId, dcname, values)

@@ -1,5 +1,11 @@
 name: Build, Test, and Publish
 on:
+  # Run this workflow everytime a push is made to main
+  # to release a pre-release version of the package.
+  push:
+    branches:
+      - main
+
   # Run this workflow everytime a pull request is opened to main
   # to test the changes.
   pull_request:

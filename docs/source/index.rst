@@ -15,3 +15,5 @@ documentation for details.
    :maxdepth: 2
    :caption: Contents:
 
+.. automodule:: panda3d_astron
+   :members:

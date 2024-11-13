@@ -14,15 +14,25 @@ release = '1.0.0'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
+extensions = [
+    'sphinx.ext.autodoc',  # For pulling in docstrings
+    'sphinx.ext.napoleon', # For Google or NumPy style docstrings (optional)
+    'sphinx_rtd_theme'     # For the Read the Docs theme
+]
 
 templates_path = ['_templates']
 exclude_patterns = []
 
-
-
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'alabaster'
+html_theme = "sphinx_rtd_theme"
 html_static_path = ['_static']
+
+# -- Path setup --------------------------------------------------------------
+# If extensions are in another directory, add that directory to sys.path.
+
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath('..'))

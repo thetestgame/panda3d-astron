@@ -2,7 +2,7 @@
 Setup script for building the module into a package for publishing to PyPI.
 """
 
-from setuptools import setup
+from setuptools import setup, find_namespace_packages
 import sys
 import os
 
@@ -15,7 +15,14 @@ def get_version() -> str:
     minor = os.environ.get('MINOR', '0')
     patch = os.environ.get('PATCH', '0')
 
-    return f'{major}.{minor}.{patch}'
+    # Determine if this is a pre-release version
+    release_flag = os.environ.get('RELEASE', 'true').lower()
+    prerelease = not bool(release_flag)
+
+    if not prerelease:
+        return f'{major}.{minor}.{patch}'
+    else:
+        return f'{major}.{minor}.{patch}.dev'
 
 def get_readme(filename: str = 'README.md') -> str:
     """
@@ -49,7 +56,7 @@ def main() -> int:
 
     # Define some constants
     module_name = 'panda3d_astron'
-
+    
     # Run the setup
     setup(
         name=module_name,
@@ -61,10 +68,8 @@ def main() -> int:
         author='Jordan Maxwell',
         maintainer='Jordan Maxwell',
         url=get_package_url(module_name),
-        packages=[module_name],
-        install_requires=[
-            "panda3d"
-        ],
+        packages=find_namespace_packages(),
+        install_requires=get_requirements(),
         classifiers=[
             'Programming Language :: Python :: 3',
         ])

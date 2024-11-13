@@ -1,9 +1,11 @@
 from panda3d.core import *
 from panda3d.direct import DCPacker
+
 from direct.directnotify import DirectNotifyGlobal
 from direct.distributed.ConnectionRepository import ConnectionRepository
 from direct.distributed.PyDatagram import PyDatagram
 from direct.distributed.PyDatagramIterator import PyDatagramIterator
+
 from panda3d_astron.msgtypes import *
 
 class AstronDatabaseInterface:
@@ -15,13 +17,24 @@ class AstronDatabaseInterface:
     Do not create this class directly; instead, use AstronInternalRepository's
     dbInterface attribute.
     """
-    notify = DirectNotifyGlobal.directNotify.newCategory("AstronDatabaseInterface")
 
     def __init__(self, air):
+        """
+        Initialize the Astron database interface.
+        """
+        
         self.air = air
 
         self._callbacks = {}
         self._dclasses = {}
+
+    @property
+    def notify(self) -> object:
+        """
+        Retrieves the parent repositories notify object
+        """
+
+        return self.air.notify
 
     def createObject(self, databaseId, dclass, fields={}, callback=None):
         """
@@ -61,7 +74,9 @@ class AstronDatabaseInterface:
         dg.appendData(fieldPacker.getBytes())
         self.air.send(dg)
 
-    def handleCreateObjectResp(self, di):
+    create_object = createObject
+
+    def handle_create_object_resp(self, di):
         ctx = di.getUint32()
         doId = di.getUint32()
 
@@ -118,7 +133,9 @@ class AstronDatabaseInterface:
             dg.addUint16(field.getNumber())
         self.air.send(dg)
 
-    def handleQueryObjectResp(self, msgType, di):
+    query_object = queryObject
+
+    def handle_query_object_resp(self, msgType, di):
         ctx = di.getUint32()
         success = di.getUint8()
 
@@ -248,7 +265,9 @@ class AstronDatabaseInterface:
             # Oh well, better honor their request:
             callback(None)
 
-    def handleUpdateObjectResp(self, di, multi):
+    update_object = updateObject
+
+    def handle_update_object_resp(self, di, multi):
         ctx = di.getUint32()
         success = di.getUint8()
 
@@ -295,14 +314,21 @@ class AstronDatabaseInterface:
         finally:
             del self._callbacks[ctx]
 
-    def handleDatagram(self, msgType, di):
-        if msgType == DBSERVER_CREATE_OBJECT_RESP:
-            self.handleCreateObjectResp(di)
-        elif msgType in (DBSERVER_OBJECT_GET_ALL_RESP,
+    def handle_datagram(self, msg_type: int, di: object) -> None:
+        """
+        Handle a datagram from the database server.
+        """
+
+        if msg_type == DBSERVER_CREATE_OBJECT_RESP:
+            self.handle_create_object_resp(di)
+        elif msg_type in (DBSERVER_OBJECT_GET_ALL_RESP,
                          DBSERVER_OBJECT_GET_FIELDS_RESP,
                          DBSERVER_OBJECT_GET_FIELD_RESP):
-            self.handleQueryObjectResp(msgType, di)
-        elif msgType == DBSERVER_OBJECT_SET_FIELD_IF_EQUALS_RESP:
-            self.handleUpdateObjectResp(di, False)
-        elif msgType == DBSERVER_OBJECT_SET_FIELDS_IF_EQUALS_RESP:
-            self.handleUpdateObjectResp(di, True)
+            self.handle_query_object_resp(msg_type, di)
+        elif msg_type == DBSERVER_OBJECT_SET_FIELD_IF_EQUALS_RESP:
+            self.handle_update_object_resp(di, False)
+        elif msg_type == DBSERVER_OBJECT_SET_FIELDS_IF_EQUALS_RESP:
+            self.handle_update_object_resp(di, True)
+        else:
+            message_name = MsgId2Names.get(msg_type, str(msg_type))
+            self.notify.warning('Received unknown database message: %s' % message_name)

@@ -1,22 +1,25 @@
 from direct.directnotify import DirectNotifyGlobal
 from direct.distributed.PyDatagram import PyDatagram
 from direct.showbase.Messenger import Messenger
+
 from pickle import dumps, loads
 
-class NetMessenger(Messenger):
+class NetMessengerInterface(Messenger):
     """
     This works very much like the Messenger class except that messages
     are sent over the network and (possibly) handled (accepted) on a
     remote machine (server).
     """
+
     notify = DirectNotifyGlobal.directNotify.newCategory('NetMessenger')
 
-    def __init__(self, air, baseChannel=20000, baseMsgType=20000):
+    def __init__(self, air: object, baseChannel: int = 20000, baseMsgType: int = 20000):
         """
         air is the AI Repository.
         baseChannel is the channel that the first message is sent on.
         baseMsgType is the MsgType of the same.
         """
+        
         assert self.notify.debugCall()
         Messenger.__init__(self)
         self.air=air
@@ -80,22 +83,23 @@ class NetMessenger(Messenger):
 
         Messenger.accept(self, message, *args)
 
-    def send(self, message, sentArgs=[]):
+    def send(self, message: str, sentArgs: list = []) -> None:
         """
         Send message to anything that's listening for it.
         """
+
         assert self.notify.debugCall()
 
         datagram = self.prepare(message, sentArgs)
         self.air.send(datagram)
         Messenger.send(self, message, sentArgs=sentArgs)
 
-    def handle(self, msgType, di):
+    def handle_datagram(self, msgType: int, di: object) -> None:
         """
         Send data from the net on the local netMessenger.
         """
-        assert self.notify.debugCall()
 
+        assert self.notify.debugCall()
         if msgType not in self.__type2message:
             self.notify.warning('Received unknown message: %d' % msgType)
             return

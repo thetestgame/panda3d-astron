@@ -40,12 +40,22 @@ jobs:
         major_pattern: "(MAJOR)"
         minor_pattern: "(MINOR)"
 
-    # Build the package using the version
+    # Export the version as an environment variable and also export 
+    # the current release vs prerelease state as an environment variable.
+    # This is determined if the event_name is release or not. Finally
+    # build the package.
     - name: Build package
+      if: github.event_name != 'pull_request'
       run: |
         export MAJOR=${{ steps.package-version.outputs.major }}
         export MINOR=${{ steps.package-version.outputs.minor }}
         export PATCH=${{ steps.package-version.outputs.patch }}
+
+        if [ "${{ github.event_name }}" == "release" ]; then
+          export RELEASE="true"
+        else
+          export RELEASE="false"
+        fi
 
         echo "Building version $MAJOR.$MINOR.$PATCH"
         python -m build
@@ -54,6 +64,7 @@ jobs:
     - name: Load secret
       id: op-load-secret
       uses: 1password/load-secrets-action@v2
+      if: github.event_name != 'pull_request'
       with:
         export-env: false
       env:
@@ -63,7 +74,7 @@ jobs:
     # Publish the package to PyPi if a release is created
     - name: Publish package
       uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
-      if: github.event_name == 'release'
+      if: github.event_name != 'pull_request'
       with:
         user: __token__
         password: ${{ steps.op-load-secret.outputs.SECRET }}

@@ -77,10 +77,10 @@ class AstronInternalRepository(ConnectionRepository):
         # Setup our channel allocator and register our own channel for communicating
         # our selves to the larger Astron cluster. 
         self.minChannel = baseChannel
-        self.maxChannel = self.config.GetInt('air-channel-allocation', maxChannels)
+        self.maxChannel = self.config.GetInt('air-channel-allocation', baseChannel + maxChannels)
         self.notify.info(f"Dynamic channel range [{self.minChannel}, {self.maxChannel}]. totaling {self.maxChannel - self.minChannel +1} slots.")
         assert self.maxChannel >= self.minChannel
-        self.channelAllocator = p3d.UniqueIdAllocator(baseChannel, baseChannel + self.maxChannels - 1)
+        self.channelAllocator = p3d.UniqueIdAllocator(baseChannel, baseChannel + self.maxChannel - 1)
 
         self._registeredChannels = set()
         self.ourChannel = self.allocateChannel()
@@ -297,7 +297,7 @@ class AstronInternalRepository(ConnectionRepository):
             parentId = self.getGameDoId()
             
         self.notify.info(f'Subscribing to network zone ({zoneId}) under parent {parentId}')
-        self.register_for_location_channel(self.getGameDoId(), zoneId)
+        self.register_for_location_channel(parentId, zoneId)
 
         self.state_server.get_zone_objects(
             parentId=parentId,
